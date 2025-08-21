@@ -1,11 +1,10 @@
 <?php
 require_once 'config.php';
-require_once 'functions.php';   // getPersonalVolume() & getGroupVolume()
+require_once 'functions.php';   // getPersonalVolume(), getGroupVolume()
 
 /**
  * Mentor (reverse-leadership) bonus with requirement-based flushing.
- * Pays only if the DESCENDANT meets the PVT/GVT targets for its level.
- * Flushes unpaid bonuses and logs them so they are never re-paid.
+ * Uses its own mentor_flush_log table to prevent double-payments.
  */
 function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): void
 {
@@ -20,13 +19,13 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
         5 => ['pvt' => 1000, 'gvt' => 10000,  'rate' => 0.01],
     ];
 
-    /* 1️⃣  Build list of every descendant 1-5 levels deep */
+    /* 1️⃣  Build every descendant 1-5 levels deep */
     $descendants = [];
     $current = [$ancestorId];
     for ($level = 1; $level <= 5; $level++) {
         if (!$current) break;
 
-        $placeholders = implode(',', array_fill(0, count($current), '?'));
+        $placeholders = implode(',', array_fill(0, count($current), '?'));  
         $sql = "
             SELECT id, username
             FROM users
@@ -61,23 +60,23 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
 
         $grossBonus = $pairBonus * $rate;
 
-        /* 3️⃣  Subtract any previously-flushed amount for this (descendant, level, ancestor) */
+        /* 3️⃣  Subtract any previously-flushed mentor amount */
         $stmt = $pdo->prepare(
             'SELECT COALESCE(SUM(amount),0)
-             FROM leadership_flush_log
+             FROM mentor_flush_log
              WHERE ancestor_id = ?
-               AND downline_id = ?
+               AND descendant_id = ?
                AND level = ?'
         );
         $stmt->execute([$ancestorId, $descId, $level]);
         $flushed = (float) $stmt->fetchColumn();
 
         $netBonus = max(0, $grossBonus - $flushed);
-        if ($netBonus <= 0) continue;   // fully flushed – nothing to do
+        if ($netBonus <= 0) continue;
 
         /* 4️⃣  Pay or flush */
         if ($pvt >= $needPVT && $gvt >= $needGVT) {
-            /* ✅  Pay the mentor bonus */
+            /* ✅ Pay mentor bonus */
             $pdo->prepare(
                 'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
             )->execute([$netBonus, $descId]);
@@ -87,16 +86,16 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
                  VALUES (?, "leadership_reverse_bonus", ?)'
             )->execute([$descId, $netBonus]);
         } else {
-            /* ❌  Flush the remaining eligible amount */
+            /* ❌ Flush remaining eligible amount */
             $pdo->prepare(
                 'INSERT INTO flushes (user_id, amount, flushed_on, reason)
                  VALUES (?, ?, CURDATE(), ?)'
             )->execute([$descId, $netBonus, 'mentor_requirements_not_met']);
 
-            /* 📝  Log the flushed amount so it’s never paid again */
+            /* 📝 Log to prevent re-payment */
             $pdo->prepare(
-                'INSERT INTO leadership_flush_log
-                   (ancestor_id, downline_id, level, amount, flushed_on)
+                'INSERT INTO mentor_flush_log
+                   (ancestor_id, descendant_id, level, amount, flushed_on)
                  VALUES (?, ?, ?, ?, CURDATE())'
             )->execute([$ancestorId, $descId, $level, $netBonus]);
         }

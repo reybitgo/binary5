@@ -101,3 +101,17 @@ CREATE TABLE leadership_flush_log (
         flushed_on
     )
 );
+
+CREATE TABLE IF NOT EXISTS mentor_flush_log (
+    ancestor_id INT NOT NULL,
+    descendant_id INT NOT NULL,
+    level TINYINT NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL,
+    flushed_on DATE NOT NULL,
+    PRIMARY KEY (
+        ancestor_id,
+        descendant_id,
+        level,
+        flushed_on
+    )
+);
