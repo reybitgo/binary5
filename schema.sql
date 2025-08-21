@@ -1,0 +1,76 @@
+DROP DATABASE IF EXISTS binary5_db;
+
+CREATE DATABASE IF NOT EXISTS binary5_db;
+
+USE binary5_db;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE,
+    password VARCHAR(255),
+    sponsor_name VARCHAR(50),
+    upline_id INT DEFAULT NULL,
+    position ENUM('left', 'right') DEFAULT NULL,
+    left_count INT DEFAULT 0,
+    right_count INT DEFAULT 0,
+    pairs_today INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upline_id) REFERENCES users (id) ON DELETE SET NULL
+);
+
+CREATE TABLE wallets (
+    user_id INT PRIMARY KEY,
+    balance DECIMAL(12, 2) DEFAULT 0.00,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE wallet_tx (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    type ENUM(
+        'topup',
+        'withdraw',
+        'transfer_in',
+        'transfer_out',
+        'package',
+        'pair_bonus'
+    ),
+    amount DECIMAL(12, 2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE packages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50),
+    price DECIMAL(12, 2),
+    pv INT /* point value for bonus calculation */
+);
+
+CREATE TABLE flushes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    amount DECIMAL(12, 2),
+    flushed_on DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+INSERT INTO
+    packages (name, price, pv)
+VALUES ('Starter', 25.00, 25),
+    ('Pro', 50.00, 50),
+    ('Elite', 100.00, 100);
+
+ALTER TABLE wallet_tx
+MODIFY COLUMN type ENUM(
+    'topup',
+    'withdraw',
+    'transfer_in',
+    'transfer_out',
+    'package',
+    'pair_bonus',
+    'referral_bonus',
+    'leadership_bonus',
+    'leadership_reverse_bonus'
+);
