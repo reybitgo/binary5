@@ -1,23 +1,19 @@
 <?php
 require_once 'config.php';
-require_once 'functions.php';
+require_once 'functions.php';   // getPersonalVolume() & getGroupVolume()
 
 /**
- * Pay leadership bonus upline (1-5 levels) ONLY if the sponsor
- * has satisfied his/her Personal-Volume-Target (PVT) and
- * Group-Volume-Target (GVT) for that level.
- *
- * @param int   $earnerId  The user who just received the pair bonus
- * @param float $pairBonus The actual pair_bonus amount credited to him
- * @param PDO   $pdo       Active DB connection
+ * Leadership bonus with requirement-based flushing.
+ * If an ancestor fails PVT/GVT for its level, the unpaid bonus
+ * is flushed with reason = 'leadership_requirements_not_met'.
+ * A ledger table prevents the same (ancestor, level, downline) pair
+ * from ever being paid again.
  */
 function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
 {
     if ($pairBonus <= 0) return;
 
-    /* -------------------------------------------------
-     * 1.  Pre-defined schedule
-     * -------------------------------------------------*/
+    /* ---------- Level schedule ---------- */
     $schedule = [
         1 => ['pvt' => 100,  'gvt' =>   500,  'rate' => 0.05],
         2 => ['pvt' => 200,  'gvt' =>  1000,  'rate' => 0.04],
@@ -26,13 +22,11 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
         5 => ['pvt' => 1000, 'gvt' => 10000,  'rate' => 0.01],
     ];
 
-    /* -------------------------------------------------
-     * 2.  Walk 5 sponsorship levels UP
-     * -------------------------------------------------*/
     $currentId = $earnerId;
+
     for ($level = 1; $level <= 5; $level++) {
 
-        /* --- 2a. get sponsor (upline) --- */
+        /* 1️⃣  Find ancestor for this level */
         $stmt = $pdo->prepare(
             'SELECT sponsor_name FROM users WHERE id = ?'
         );
@@ -47,36 +41,62 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
         $sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$sponsor) break;
 
-        $sponsorId = (int) $sponsor['id'];
+        $ancestorId = (int) $sponsor['id'];
 
-        /* --- 2b. compute PVT & GVT for this sponsor --- */
-        $pvt = (float) getPersonalVolume($sponsorId, $pdo);
-        $gvt = (float) getGroupVolume($sponsorId, $pdo, 0);
-
-        /* --- 2c. check unlock --- */
+        /* 2️⃣  Check unlock */
         $needPVT = $schedule[$level]['pvt'];
         $needGVT = $schedule[$level]['gvt'];
         $rate    = $schedule[$level]['rate'];
 
-        if ($pvt < $needPVT || $gvt < $needGVT) {
-            // level not unlocked → skip to next level
-            $currentId = $sponsorId;
-            continue;
+        $pvt = getPersonalVolume($ancestorId, $pdo);
+        $gvt = getGroupVolume($ancestorId, $pdo, 0);   // all levels
+
+        $grossBonus = $pairBonus * $rate;
+
+        /* 3️⃣  Subtract any previously-flushed amount for this (ancestor, level, downline) */
+        $stmt = $pdo->prepare(
+            'SELECT COALESCE(SUM(amount),0)
+             FROM leadership_flush_log
+             WHERE ancestor_id = ?
+               AND downline_id = ?
+               AND level = ?'
+        );
+        $stmt->execute([$ancestorId, $earnerId, $level]);
+        $flushed = (float) $stmt->fetchColumn();
+
+        $netBonus = max(0, $grossBonus - $flushed);
+        if ($netBonus <= 0) {
+            $currentId = $ancestorId;
+            continue;   // fully flushed – nothing to do
         }
 
-        /* --- 2d. pay the bonus --- */
-        $bonus = $pairBonus * $rate;
+        /* 4️⃣  Pay or flush */
+        if ($pvt >= $needPVT && $gvt >= $needGVT) {
+            /* ✅  Pay the bonus */
+            $pdo->prepare(
+                'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
+            )->execute([$netBonus, $ancestorId]);
 
-        $pdo->prepare(
-            'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
-        )->execute([$bonus, $sponsorId]);
+            $pdo->prepare(
+                'INSERT INTO wallet_tx (user_id, type, amount)
+                 VALUES (?, "leadership_bonus", ?)'
+            )->execute([$ancestorId, $netBonus]);
+        } else {
+            /* ❌  Flush the remaining eligible amount */
+            $pdo->prepare(
+                'INSERT INTO flushes (user_id, amount, flushed_on, reason)
+                 VALUES (?, ?, CURDATE(), ?)'
+            )->execute([$ancestorId, $netBonus, 'leadership_requirements_not_met']);
 
-        $pdo->prepare(
-            'INSERT INTO wallet_tx (user_id, type, amount)
-             VALUES (?, "leadership_bonus", ?)'
-        )->execute([$sponsorId, $bonus]);
+            /* 📝  Log the flushed amount so it’s never paid again */
+            $pdo->prepare(
+                'INSERT INTO leadership_flush_log
+                   (ancestor_id, downline_id, level, amount, flushed_on)
+                 VALUES (?, ?, ?, ?, CURDATE())'
+            )->execute([$ancestorId, $earnerId, $level, $netBonus]);
+        }
 
-        /* move one level higher */
-        $currentId = $sponsorId;
+        /* Move up one sponsorship level */
+        $currentId = $ancestorId;
     }
 }

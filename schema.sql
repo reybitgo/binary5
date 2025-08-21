@@ -74,3 +74,30 @@ MODIFY COLUMN type ENUM(
     'leadership_bonus',
     'leadership_reverse_bonus'
 );
+
+ALTER TABLE flushes
+ADD COLUMN reason ENUM(
+    'binary_overflow',
+    'leadership_requirements_not_met'
+) NOT NULL DEFAULT 'binary_overflow' AFTER amount;
+
+ALTER TABLE flushes
+MODIFY COLUMN reason ENUM(
+    'binary_overflow',
+    'leadership_requirements_not_met',
+    'mentor_requirements_not_met'
+) DEFAULT 'binary_overflow';
+
+CREATE TABLE leadership_flush_log (
+    ancestor_id INT NOT NULL,
+    downline_id INT NOT NULL,
+    level TINYINT NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL,
+    flushed_on DATE NOT NULL,
+    PRIMARY KEY (
+        ancestor_id,
+        downline_id,
+        level,
+        flushed_on
+    )
+);
