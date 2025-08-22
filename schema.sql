@@ -1,3 +1,4 @@
+-- Active: 1755594857749@@127.0.0.1@3306@binary5_db
 DROP DATABASE IF EXISTS binary5_db;
 
 CREATE DATABASE IF NOT EXISTS binary5_db;
@@ -134,3 +135,21 @@ CREATE TABLE ewallet_requests (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
+ALTER TABLE wallet_tx
+MODIFY COLUMN type ENUM(
+    'topup',
+    'withdraw',
+    'transfer_in',
+    'transfer_out',
+    'package',
+    'pair_bonus',
+    'referral_bonus',
+    'leadership_bonus',
+    'leadership_reverse_bonus',
+    'withdraw_hold',
+    'withdraw_reject'
+);
+
+ALTER TABLE ewallet_requests
+ADD COLUMN wallet_address VARCHAR(255) NULL AFTER tx_hash;

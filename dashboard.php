@@ -133,23 +133,33 @@ function flash()
 // Handle actions
 if ($_POST['action'] ?? '') {
     switch ($_POST['action']) {
-        case 'topup':
-            $amt = (float) $_POST['amount'];
-            $pdo->prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?")
-                ->execute([$amt,$uid]);
-            $pdo->prepare("INSERT INTO wallet_tx (user_id,type,amount) VALUES (?,'topup',?)")
-                ->execute([$uid,$amt]);
-            redirect('dashboard.php', "Top-up success");
+        case 'request_topup':
+            $amt = max(0, (float) $_POST['usdt_amount']);
+            if ($amt <= 0) redirect('dashboard.php', 'Invalid amount');
+            $hash = trim($_POST['tx_hash']) ?: null;
+            $b2p = $amt * USDT_B2P_RATE;
+            $pdo->prepare(
+              "INSERT INTO ewallet_requests (user_id, type, usdt_amount, b2p_amount, tx_hash, status)
+              VALUES (?,'topup', ?, ?, ?, 'pending')"
+            )->execute([$uid, $amt, $b2p, $hash]);
+            redirect('dashboard.php', 'Top-up request submitted');
             break;
 
-        case 'withdraw':
-            $amt = (float) $_POST['amount'];
-            if ($amt > $user['balance']) redirect('dashboard.php', 'Insufficient balance');
-            $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")
-                ->execute([$amt,$uid]);
-            $pdo->prepare("INSERT INTO wallet_tx (user_id,type,amount) VALUES (?,'withdraw',?)")
-                ->execute([$uid,-$amt]);
-            redirect('dashboard.php', 'Withdrawal submitted');
+        case 'request_withdraw':
+            $amt = max(0, (float) $_POST['usdt_amount']);
+            if ($amt <= 0) redirect('dashboard.php','Invalid amount');
+            if ($amt > $user['balance']) redirect('dashboard.php','Insufficient balance');
+
+            $addr = trim($_POST['wallet_address']);
+            $b2p  = $amt * USDT_B2P_RATE;
+
+            // *** only insert the request, do NOT debit the wallet yet ***
+            $pdo->prepare(
+              "INSERT INTO ewallet_requests (user_id,type,usdt_amount,b2p_amount,wallet_address,status)
+              VALUES (?,'withdraw',?,?,?,'pending')"
+            )->execute([$uid,$amt,$b2p,$addr]);
+
+            redirect('dashboard.php','Withdrawal request submitted');
             break;
 
         case 'transfer':
@@ -418,7 +428,58 @@ if ($_POST['action'] ?? '') {
 
     <!-- TAB 3: Wallet -->
     <div class="tab-pane fade" id="wallet">
+      <!-- FILE: dashboard.php (inside #wallet tab) -->
       <div class="card mb-4">
+        <div class="card-header">Balance: $<?=number_format($user['balance'],2)?></div>
+        <div class="card-body">
+          <!-- TOP-UP REQUEST -->
+          <form method="post" class="row g-2 mb-3">
+            <input type="hidden" name="action" value="request_topup">
+            <div class="col-md-5"><input type="number" step="0.01" class="form-control" name="usdt_amount" placeholder="USDT amount" required></div>
+            <div class="col-md-5"><input type="text" class="form-control" name="tx_hash" placeholder="Blockchain TX Hash (optional)"></div>
+            <div class="col-md-2"><button class="btn btn-success">Request Top-up</button></div>
+          </form>
+
+          <!-- WITHDRAW REQUEST -->
+          <form method="post" class="row g-2">
+            <input type="hidden" name="action" value="request_withdraw">
+            <div class="col-md-5"><input type="number" step="0.01" class="form-control" name="usdt_amount" placeholder="USDT amount" required></div>
+            <div class="col-md-5"><input type="text" class="form-control" name="wallet_address" placeholder="USDT TRC-20 Address" required></div>
+            <div class="col-md-2"><button class="btn btn-warning">Request Withdraw</button></div>
+          </form>
+
+          <hr>
+          <form method="post" class="row g-2 mt-3">
+            <div class="col-md-4"><input type="text" class="form-control" name="to_username" placeholder="Username" required></div>
+            <div class="col-md-4"><input type="number" step="0.01" class="form-control" name="amount" placeholder="Amount" required></div>
+            <div class="col-md-4"><button class="btn btn-info" name="action" value="transfer">Transfer</button></div>
+          </form>
+
+          <!-- pending requests preview -->
+          <?php
+            $pend = $pdo->prepare("SELECT * FROM ewallet_requests WHERE user_id = ? AND status='pending' ORDER BY id DESC");
+            $pend->execute([$uid]);
+            if ($pend->rowCount()):
+          ?>
+            <hr>
+            <h6>Pending Requests</h6>
+            <table class="table table-sm">
+              <thead><tr><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+              <tbody>
+                <?php foreach($pend as $r): ?>
+                  <tr>
+                    <td><?=ucfirst($r['type'])?></td>
+                    <td><?=$r['usdt_amount']?> USDT</td>
+                    <td><span class="badge bg-warning">Pending</span></td>
+                    <td><?=$r['created_at']?></td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+        </div>
+      </div>
+      <!-- <div class="card mb-4">
         <div class="card-header">Balance: $<?=number_format($user['balance'],2)?></div>
         <div class="card-body">
           <form method="post" class="row g-2">
@@ -433,7 +494,7 @@ if ($_POST['action'] ?? '') {
             <div class="col-md-4"><button class="btn btn-info" name="action" value="transfer">Transfer</button></div>
           </form>
         </div>
-      </div>
+      </div> -->
 
       <h5>Transactions</h5>
       <table class="table table-sm">
