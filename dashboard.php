@@ -12,6 +12,8 @@ $user = $pdo->prepare("SELECT u.*, w.balance
 $user->execute([$uid]);
 $user = $user->fetch();
 
+$isAdmin = ($user['role'] === 'admin');
+
 // packages
 $packages = $pdo->query("SELECT * FROM packages")->fetchAll();
 
@@ -416,25 +418,65 @@ if ($_POST['action'] ?? '') {
       </table>
     </div>
 
-    <!-- TAB 3: Wallet -->
+    <!-- TAB 3: Wallet + Admin Approval -->
     <div class="tab-pane fade" id="wallet">
       <div class="card mb-4">
-        <div class="card-header">Balance: $<?=number_format($user['balance'],2)?></div>
+        <div class="card-header">
+          Balance: <?=number_format($user['balance'],2)?> USDT
+          <?php if($isAdmin): ?>
+            <span class="badge bg-danger ms-2">ADMIN MODE</span>
+          <?php endif; ?>
+        </div>
         <div class="card-body">
-          <form method="post" class="row g-2">
-            <div class="col-md-4"><input type="number" step="0.01" class="form-control" name="amount" placeholder="Amount" required></div>
-            <div class="col-md-4"><button class="btn btn-success" name="action" value="topup">Top-up (demo)</button></div>
-            <div class="col-md-4"><button class="btn btn-warning" name="action" value="withdraw">Withdraw</button></div>
+          <!-- User request form -->
+          <form method="post" class="row g-2 mb-4">
+            <div class="col-md-4">
+              <input type="number" step="0.01" class="form-control" name="amount" placeholder="USDT amount" required>
+            </div>
+            <div class="col-md-4">
+              <button class="btn btn-success" name="action" value="request_topup">Request Top-up</button>
+            </div>
+            <div class="col-md-4">
+              <button class="btn btn-warning" name="action" value="request_withdraw">Request Withdraw</button>
+            </div>
           </form>
-          <hr>
-          <form method="post" class="row g-2 mt-3">
-            <div class="col-md-4"><input type="text" class="form-control" name="to_username" placeholder="Username" required></div>
-            <div class="col-md-4"><input type="number" step="0.01" class="form-control" name="amount" placeholder="Amount" required></div>
-            <div class="col-md-4"><button class="btn btn-info" name="action" value="transfer">Transfer</button></div>
-          </form>
+
+          <!-- Admin approval area -->
+          <?php if($isAdmin): ?>
+            <hr>
+            <h6>Pending Requests</h6>
+            <table class="table table-sm">
+              <thead><tr><th>User</th><th>Type</th><th>USDT</th><th>B2P</th><th>Hash</th><th>Action</th></tr></thead>
+              <tbody>
+              <?php
+              $req = $pdo->query("SELECT er.*, u.username
+                                  FROM ewallet_requests er
+                                  JOIN users u ON u.id = er.user_id
+                                  WHERE er.status='pending'
+                                  ORDER BY er.id");
+              foreach($req as $r):?>
+                <tr>
+                  <td><?=htmlspecialchars($r['username'])?></td>
+                  <td><?=$r['type']?></td>
+                  <td><?=$r['usdt_amount']?></td>
+                  <td><?=$r['b2p_amount']?></td>
+                  <td><small><?=htmlspecialchars($r['tx_hash'])?></small></td>
+                  <td>
+                    <form method="post" style="display:inline;">
+                      <input type="hidden" name="req_id" value="<?=$r['id']?>">
+                      <button class="btn btn-sm btn-outline-primary" name="action" value="approve">Approve</button>
+                      <button class="btn btn-sm btn-outline-danger"  name="action" value="reject">Reject</button>
+                    </form>
+                  </td>
+                </tr>
+              <?php endforeach;?>
+              </tbody>
+            </table>
+          <?php endif; ?>
         </div>
       </div>
 
+      <!-- Transactions history (same as before) -->
       <h5>Transactions</h5>
       <table class="table table-sm">
         <thead><tr><th>Type</th><th>Amount</th><th>Date</th></tr></thead>
@@ -443,7 +485,7 @@ if ($_POST['action'] ?? '') {
         $tx = $pdo->prepare("SELECT * FROM wallet_tx WHERE user_id = ? ORDER BY id DESC LIMIT 20");
         $tx->execute([$uid]);
         foreach ($tx as $t) {
-          echo "<tr><td>{$t['type']}</td><td>{$t['amount']}</td><td>{$t['created_at']}</td></tr>";
+          echo "<tr><td>{$t['type']}</td><td>".number_format($t['amount'],2)." USDT</td><td>{$t['created_at']}</td></tr>";
         }
         ?>
         </tbody>

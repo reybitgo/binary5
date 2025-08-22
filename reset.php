@@ -12,10 +12,10 @@ $useHardcodedPassword = true;
 // Generate password based on configuration
 if ($useHardcodedPassword) {
     $adminPlain = 'admin123'; // Hardcoded password for development/testing
-    echo "Using hardcoded password for development\n";
+    echo "<pre>Using hardcoded password for development...</pre>";
 } else {
     $adminPlain = bin2hex(random_bytes(6)); // 12-char random hex string
-    echo "Generated random password\n";
+    echo "<pre>Generated random password...</pre>";
 }
 
 $adminHash = password_hash($adminPlain, PASSWORD_DEFAULT);
@@ -30,7 +30,7 @@ if ($sql === false) {
     die("Failed to read schema.sql\n");
 }
 
-echo "Reading clean schema.sql...\n";
+echo "<pre>Reading clean schema.sql...</pre>";
 
 try {
     // Connect to MySQL server
@@ -40,39 +40,39 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false
     ]);
     
-    echo "Executing database schema...\n";
+    echo "<pre>Executing database schema...</pre>";
     
     // Execute the entire SQL file
     $pdo->exec($sql);
     
-    echo "Schema created successfully!\n";
+    echo "<pre>Schema created successfully!</pre>";
     
     // Switch to the new database
     $pdo->exec("USE binary5_db");
     
     // Create admin user
-    echo "Creating admin user...\n";
+    echo "<pre>Creating admin user...</pre>";
     $stmt = $pdo->prepare("INSERT INTO users (username, password, sponsor_name, upline_id, position) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute(['admin', $adminHash, 'root', null, null]);
     
     $adminId = $pdo->lastInsertId();
-    echo "Admin user created with ID: $adminId\n";
+    echo "<pre>Admin user created with ID: $adminId</pre>";
     
     // Create wallet for admin user
     $stmt = $pdo->prepare("INSERT INTO wallets (user_id, balance) VALUES (?, ?)");
     $stmt->execute([$adminId, 0.00]);
-    echo "Admin wallet created\n";
+    echo "<pre>Admin wallet created...</pre>";
     
-    echo "\n=== DATABASE RESET SUCCESSFUL ===\n";
-    echo "Admin username: admin\n";
-    echo "Admin password: {$adminPlain}\n";
-    echo "\nYou can now log in with these credentials.\n";
+    echo "<pre>=== DATABASE RESET SUCCESSFUL ===</pre>";
+    echo "<pre>Admin username: admin</pre>";
+    echo "<pre>Admin password: {$adminPlain}</pre>";
+    echo "<pre>You can now log in with these credentials.</pre>";
     
 } catch (PDOException $e) {
-    echo "Database Error: " . $e->getMessage() . "\n";
+    echo "<pre>Database Error: " . $e->getMessage() . "</pre>";
     exit(1);
 } catch (Exception $e) {
-    echo "Error: " . $e->getMessage() . "\n";
+    echo "<pre>Error: " . $e->getMessage() . "</pre>";
     exit(1);
 }
 
@@ -83,37 +83,37 @@ try {
     $stmt->execute();
     
     if ($user = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        echo "✓ Admin user verified (ID: {$user['id']})\n";
+        echo "<pre>✓ Admin user verified (ID: {$user['id']})</pre>";
         
         // Check wallet
         $stmt = $pdo->prepare("SELECT balance FROM wallets WHERE user_id = ?");
         $stmt->execute([$user['id']]);
         
         if ($wallet = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            echo "✓ Admin wallet verified (Balance: $" . number_format($wallet['balance'], 2) . ")\n";
+            echo "<pre>✓ Admin wallet verified (Balance: $" . number_format($wallet['balance'], 2) . ")</pre>";
         } else {
-            echo "⚠ Warning: Admin wallet not found\n";
+            echo "<pre>⚠ Warning: Admin wallet not found</pre>";
         }
         
         // Test password
         if (password_verify($adminPlain, $adminHash)) {
-            echo "✓ Password verification successful\n";
+            echo "<pre>✓ Password verification successful</pre>";
         } else {
-            echo "⚠ Warning: Password verification failed\n";
+            echo "<pre>⚠ Warning: Password verification failed</pre>";
         }
         
         // Check packages
         $stmt = $pdo->query("SELECT COUNT(*) FROM packages");
         $packageCount = $stmt->fetchColumn();
-        echo "✓ Packages loaded: $packageCount\n";
+        echo "<pre>✓ Packages loaded: $packageCount</pre>";
         
     } else {
-        echo "⚠ Warning: Admin user not found\n";
+        echo "<pre>⚠ Warning: Admin user not found</pre>";
     }
     
 } catch (PDOException $e) {
-    echo "Note: Could not verify setup: " . $e->getMessage() . "\n";
+    echo "<pre>Note: Could not verify setup: " . $e->getMessage() . "</pre>";
 }
 
-echo "\n=== READY TO USE ===\n";
+echo "<pre>=== READY TO USE ===</pre>";
 ?>

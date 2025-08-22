@@ -115,3 +115,22 @@ CREATE TABLE IF NOT EXISTS mentor_flush_log (
         flushed_on
     )
 );
+
+ALTER TABLE users ADD role ENUM('user', 'admin') DEFAULT 'user';
+
+CREATE TABLE ewallet_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    type ENUM('topup', 'withdraw') NOT NULL,
+    usdt_amount DECIMAL(12, 2) NOT NULL,
+    b2p_amount DECIMAL(12, 2) NOT NULL,
+    tx_hash VARCHAR(70) NULL,
+    status ENUM(
+        'pending',
+        'approved',
+        'rejected'
+    ) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
