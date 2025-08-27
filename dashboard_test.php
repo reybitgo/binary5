@@ -198,127 +198,129 @@ if ($_POST['action'] ?? '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rixile</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <title>Rixile Dashboard</title>
+    <!-- Fallback to local scripts if CDN fails -->
+    <script src="https://d3js.org/d3.v7.min.js" onload="console.log('D3.js loaded from CDN')" onerror="this.src='/js/d3.v7.min.js';console.error('CDN failed, loading local D3.js')"></script>
+    <script src="https://cdn.tailwindcss.com" onload="console.log('Tailwind CSS loaded from CDN')" onerror="this.src='/css/tailwind.min.css';console.error('CDN failed, loading local Tailwind')"></script>
+    <!-- Optional: Upload d3.v7.min.js to /js/ and tailwind.min.css to /css/ on the server -->
     <style>
-    /* Org Chart Styles */
-    :root {
-        --bg: #ffffff;
-        --panel: #f8f9fa;
-        --stroke: #007bff;
-        --stroke-faint: #6c757d;
-        --text: #212529;
-        --muted: #6c757d;
-    }
-    #orgChart, #sponsorChart {
-        position: relative;
-        height: 500px;
-        width: 100%;
-        background: var(--bg);
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid #dee2e6;
-    }
-    .link {
-        fill: none;
-        stroke: var(--stroke-faint);
-        stroke-opacity: .85;
-        stroke-width: 1.5px;
-    }
-    .node rect {
-        fill: var(--panel);
-        stroke-width: 1.25px;
-        rx: 12px;
-        ry: 12px;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
-    }
-    .node.has-children rect {
-        stroke: #007bff;
-    }
-    .node.no-children rect {
-        stroke: #6c757d;
-    }
-    .node text {
-        fill: var(--text);
-        font-size: 13px;
-        font-weight: 600;
-        dominant-baseline: middle;
-        text-anchor: middle;
-    }
-    .badge {
-        fill: #e9ecef;
-        stroke: var(--stroke);
-        stroke-width: 1px;
-    }
-    .badge-text {
-        fill: var(--muted);
-        font-size: 10px;
-        font-weight: 700;
-    }
-    .node:hover rect {
-        stroke: #9db1ff;
-        cursor: pointer;
-    }
-    .chart-toolbar {
-        position: absolute;
-        right: 12px;
-        top: 12px;
-        display: flex;
-        gap: 8px;
-        z-index: 10;
-    }
-    .chart-btn {
-        background: #ffffff;
-        color: #495057;
-        border: 1px solid #ced4da;
-        border-radius: 6px;
-        padding: 6px 10px;
-        cursor: pointer;
-        font-weight: 600;
-        user-select: none;
-        font-size: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .chart-btn:hover {
-        border-color: var(--stroke);
-        background: #f8f9fa;
-    }
-    .chart-hint {
-        position: absolute;
-        left: 12px;
-        bottom: 10px;
-        background: rgba(248,249,250,0.95);
-        padding: 8px 10px;
-        border: 1px solid #ced4da;
-        border-radius: 6px;
-        font-size: 12px;
-        color: #495057;
-        user-select: none;
-        z-index: 10;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    /* Sidebar toggle for mobile */
-    #sidebarToggle {
-        display: none;
-    }
-    #sidebar {
-        z-index: 1000; /* High z-index to ensure sidebar is above charts */
-    }
-    @media (max-width: 640px) {
-        #sidebar {
-            transform: translateX(-100%);
-            transition: transform 0.3s ease-in-out;
+        /* Org Chart Styles */
+        :root {
+            --bg: #ffffff;
+            --panel: #f8f9fa;
+            --stroke: #007bff;
+            --stroke-faint: #6c757d;
+            --text: #212529;
+            --muted: #6c757d;
         }
-        #sidebar.open {
-            transform: translateX(0);
-            box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Add shadow for better visibility */
+        #orgChart, #sponsorChart {
+            position: relative;
+            height: 500px;
+            width: 100%;
+            background: var(--bg);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #dee2e6;
         }
+        .link {
+            fill: none;
+            stroke: var(--stroke-faint);
+            stroke-opacity: .85;
+            stroke-width: 1.5px;
+        }
+        .node rect {
+            fill: var(--panel);
+            stroke-width: 1.25px;
+            rx: 12px;
+            ry: 12px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+        }
+        .node.has-children rect {
+            stroke: #007bff;
+        }
+        .node.no-children rect {
+            stroke: #6c757d;
+        }
+        .node text {
+            fill: var(--text);
+            font-size: 13px;
+            font-weight: 600;
+            dominant-baseline: middle;
+            text-anchor: middle;
+        }
+        .badge {
+            fill: #e9ecef;
+            stroke: var(--stroke);
+            stroke-width: 1px;
+        }
+        .badge-text {
+            fill: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .node:hover rect {
+            stroke: #9db1ff;
+            cursor: pointer;
+        }
+        .chart-toolbar {
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+        .chart-btn {
+            background: #ffffff;
+            color: #495057;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-weight: 600;
+            user-select: none;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .chart-btn:hover {
+            border-color: var(--stroke);
+            background: #f8f9fa;
+        }
+        .chart-hint {
+            position: absolute;
+            left: 12px;
+            bottom: 10px;
+            background: rgba(248,249,250,0.95);
+            padding: 8px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #495057;
+            user-select: none;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        /* Sidebar toggle for mobile */
         #sidebarToggle {
-            display: block;
+            display: none;
         }
-    }
-  </style>
+        #sidebar {
+            z-index: 1000; /* High z-index to ensure sidebar is above charts */
+        }
+        @media (max-width: 640px) {
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Add shadow for better visibility */
+            }
+            #sidebarToggle {
+                display: block;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="flex h-screen">
@@ -804,13 +806,17 @@ if ($_POST['action'] ?? '') {
     const sidebarToggle = document.getElementById('sidebarToggle');
     const mainContent = document.querySelector('main');
 
-    sidebarToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
+    if (!sidebar || !sidebarToggle || !mainContent) {
+        console.error('Critical DOM elements missing:', { sidebar, sidebarToggle, mainContent });
+    }
+
+    sidebarToggle?.addEventListener('click', () => {
+        sidebar?.classList.toggle('open');
     });
 
     // Close sidebar when clicking outside on mobile
-    mainContent.addEventListener('click', (e) => {
-        if (window.innerWidth <= 640 && sidebar.classList.contains('open')) {
+    mainContent?.addEventListener('click', (e) => {
+        if (window.innerWidth <= 640 && sidebar?.classList.contains('open')) {
             sidebar.classList.remove('open');
         }
     });
@@ -825,35 +831,77 @@ if ($_POST['action'] ?? '') {
 
             e.preventDefault();
             const targetId = link.getAttribute('href').substring(1);
-            document.querySelectorAll('main section').forEach(section => {
-                section.classList.add('hidden');
-            });
-            document.getElementById(targetId).classList.remove('hidden');
-            document.querySelectorAll('nav a').forEach(nav => {
-                nav.classList.remove('bg-blue-500', 'text-white');
-                nav.classList.add('text-gray-600');
-            });
-            link.classList.add('bg-blue-500', 'text-white');
-            link.classList.remove('text-gray-600');
-
-            // Close sidebar on link click in mobile view
-            if (window.innerWidth <= 640) {
-                sidebar.classList.remove('open');
-            }
-
-            // Initialize charts for specific sections
-            if (targetId === 'binary') {
-                initBinaryChart();
-            } else if (targetId === 'leadership') {
-                initSponsorChart();
+            console.log(`Navigating to section: ${targetId}`); // Debug log
+            if (toggleSection(targetId)) {
+                updateActiveLink(link);
+                // Close sidebar on link click in mobile view
+                if (window.innerWidth <= 640) {
+                    sidebar?.classList.remove('open');
+                }
+                // Initialize charts for specific sections
+                if (targetId === 'binary') {
+                    initBinaryChart();
+                } else if (targetId === 'leadership') {
+                    initSponsorChart();
+                }
+            } else {
+                console.error(`Failed to toggle section: ${targetId}`);
             }
         });
     });
 
-    // Initialize Overview section by default
-    document.getElementById('overview').classList.remove('hidden');
-    document.querySelector('a[href="#overview"]').classList.add('bg-blue-500', 'text-white');
-    document.querySelector('a[href="#overview"]').classList.remove('text-gray-600');
+    // Handle section toggling and styling
+    function toggleSection(targetId) {
+        const targetSection = document.getElementById(targetId);
+        if (!targetSection) {
+            console.error(`Section #${targetId} not found`);
+            return false;
+        }
+        document.querySelectorAll('main section').forEach(section => {
+            section.classList.add('hidden');
+        });
+        targetSection.classList.remove('hidden');
+        return true;
+    }
+
+    function updateActiveLink(activeLink) {
+        document.querySelectorAll('nav a').forEach(nav => {
+            nav.classList.remove('bg-blue-500', 'text-white');
+            nav.classList.add('text-gray-600');
+        });
+        if (activeLink) {
+            activeLink.classList.add('bg-blue-500', 'text-white');
+            activeLink.classList.remove('text-gray-600');
+        }
+    }
+
+    // Handle initial hash on page load
+    function handleInitialHash() {
+        const hash = window.location.hash.substring(1) || 'overview'; // Default to overview
+        console.log(`Initial hash detected: ${hash}`); // Debug log
+        if (toggleSection(hash)) {
+            const activeLink = document.querySelector(`nav a[href="#${hash}"]`) || document.querySelector('a[href="#overview"]');
+            updateActiveLink(activeLink);
+            // Initialize charts if needed
+            if (hash === 'binary') {
+                initBinaryChart();
+            } else if (hash === 'leadership') {
+                initSponsorChart();
+            }
+        }
+    }
+
+    // Run on page load
+    window.addEventListener('load', () => {
+        console.log('Page loaded, initializing hash navigation');
+        handleInitialHash();
+    });
+
+    // Handle hash changes dynamically
+    window.addEventListener('hashchange', () => {
+        console.log('Hash changed, updating section');
+        handleInitialHash();
+    });
 
     // D3.js Chart Logic
     const binaryData = <?php echo $binaryTreeJson ?: 'null'; ?>;
@@ -864,6 +912,7 @@ if ($_POST['action'] ?? '') {
 
     function initBinaryChart() {
         if (binaryChartInitialized || !binaryData || !binaryData.id) {
+            console.warn('Binary chart not initialized: invalid data');
             return;
         }
         binaryChartInitialized = true;
@@ -872,6 +921,7 @@ if ($_POST['action'] ?? '') {
 
     function initSponsorChart() {
         if (sponsorChartInitialized || !sponsorData || !sponsorData.id) {
+            console.warn('Sponsor chart not initialized: invalid data');
             return;
         }
         sponsorChartInitialized = true;
@@ -880,6 +930,10 @@ if ($_POST['action'] ?? '') {
 
     function renderOrgChart(rootData, containerId, resetId, expandId, collapseId) {
         const container = document.getElementById(containerId);
+        if (!container) {
+            console.error(`Container #${containerId} not found`);
+            return;
+        }
         let width = container.clientWidth;
         let height = container.clientHeight;
 
