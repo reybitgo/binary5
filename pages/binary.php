@@ -204,19 +204,23 @@ function renderOrgChart(rootData, containerId, resetId, expandId, collapseId) {
         const isBinaryTree = rootData.treeType === 'binary';
         if (isBinaryTree) {
             const badgeW = 20, badgeH = 16;
-            nodeEnter.append('rect')
+            
+            // Only add badges for non-root nodes (depth > 0)
+            nodeEnter.filter(d => d.depth > 0)
+                .append('rect')
                 .attr('class', 'badge')
                 .attr('width', badgeW).attr('height', badgeH)
                 .attr('x', -nodeWidth/2 + 8)
                 .attr('y', -nodeHeight/2 + 6)
                 .attr('rx', 6).attr('ry', 6);
 
-            nodeEnter.append('text')
+            nodeEnter.filter(d => d.depth > 0)
+                .append('text')
                 .attr('class', 'badge-text')
                 .attr('x', -nodeWidth/2 + 8 + badgeW/2)
                 .attr('y', -nodeHeight/2 + 6 + badgeH/2 + 1)
                 .attr('text-anchor', 'middle')
-                .text(d => d.depth === 0 ? '' : (d.data.position === 'left' ? 'L' : 'R'));
+                .text(d => d.data.position === 'left' ? 'L' : 'R');
         }
 
         const nodeUpdate = nodeEnter.merge(node);
