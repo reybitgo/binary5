@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rixile Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root {
+      --sidebar-width: 280px;
+      --header-height: 70px;
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    }
+
+    body {
+      background: #f8f9fa;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Sidebar Styles */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: var(--sidebar-width);
+      background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-100%);
+    }
+
+    .sidebar-brand {
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .sidebar-brand h4 {
+      color: white;
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .sidebar-nav {
+      padding: 1rem 0;
+    }
+
+    .nav-item {
+      margin: 0.25rem 1rem;
+    }
+
+    .nav-link {
+      color: rgba(255,255,255,0.8);
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .nav-link:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      transform: translateX(5px);
+    }
+
+    .nav-link.active {
+      background: rgba(255,255,255,0.15);
+      color: white;
+    }
+
+    .nav-link i {
+      margin-right: 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      transition: margin-left 0.3s ease;
+    }
+
+    .main-content.expanded {
+      margin-left: 0;
+    }
+
+    /* Header */
+    .top-header {
+      height: var(--header-height);
+      background: white;
+      border-bottom: 1px solid #e9ecef;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .header-toggle {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      color: #6c757d;
+    }
+
+    /* Stats Cards */
+    .stats-card {
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      overflow: hidden;
+      transition: transform 0.3s ease;
+    }
+
+    .stats-card:hover {
+      transform: translateY(-5px);
+    }
+
+    .stats-card.primary {
+      background: var(--primary-gradient);
+      color: white;
+    }
+
+    .stats-card.success {
+      background: var(--success-gradient);
+      color: white;
+    }
+
+    .stats-card.warning {
+      background: var(--warning-gradient);
+      color: white;
+    }
+
+    .stats-card.info {
+      background: var(--info-gradient);
+      color: white;
+    }
+
+    .stats-icon {
+      font-size: 2.5rem;
+      opacity: 0.8;
+    }
+
+    /* Charts */
+    .chart-container {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .chart-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid #e9ecef;
+      background: #f8f9fa;
+    }
+
+    /* Org Chart Styles */
+    #orgChart, #sponsorChart { 
+      position: relative; 
+      height: 500px; 
+      width: 100%; 
+      background: white; 
+      border-radius: 15px; 
+      overflow: hidden;
+    }
+    
+    .link { 
+      fill: none; 
+      stroke: #667eea; 
+      stroke-opacity: .7; 
+      stroke-width: 2px; 
+    }
+    
+    .node rect {
+      fill: white;
+      stroke-width: 2px;
+      rx: 12px; 
+      ry: 12px;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,.1));
+    }
+    
+    .node.has-children rect {
+      stroke: #667eea;
+    }
+    
+    .node.no-children rect {
+      stroke: #94a3b8;
+    }
+    
+    .node text { 
+      fill: #1e293b; 
+      font-size: 13px; 
+      font-weight: 600; 
+    }
+    
+    .badge { 
+      fill: #f1f5f9; 
+      stroke: #667eea; 
+      stroke-width: 1px; 
+    }
+    
+    .badge-text { 
+      fill: #475569; 
+      font-size: 10px; 
+      font-weight: 700; 
+    }
+    
+    .node:hover rect { 
+      stroke: #4f46e5; 
+      cursor: pointer;
+    }
+
+    /* Chart Controls */
+    .chart-toolbar {
+      position: absolute; 
+      right: 15px; 
+      top: 15px; 
+      display: flex; 
+      gap: 8px;
+      z-index: 10;
+    }
+    
+    .chart-btn {
+      background: white; 
+      color: #6c757d;
+      border: 1px solid #dee2e6; 
+      border-radius: 8px;
+      padding: 8px 12px; 
+      cursor: pointer; 
+      font-weight: 500; 
+      user-select: none;
+      font-size: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: all 0.2s ease;
+    }
+    
+    .chart-btn:hover { 
+      border-color: #667eea;
+      background: #f8f9ff;
+      color: #667eea;
+    }
+
+    /* Tables */
+    .modern-table {
+      background: white;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .table th {
+      background: #f8f9fa;
+      border: none;
+      font-weight: 600;
+      color: #495057;
+      padding: 1rem;
+    }
+
+    .table td {
+      border: none;
+      padding: 1rem;
+      vertical-align: middle;
+    }
+
+    .table tbody tr {
+      border-bottom: 1px solid #f1f3f4;
+    }
+
+    .table tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    /* Buttons */
+    .btn {
+      border-radius: 10px;
+      font-weight: 500;
+      padding: 0.5rem 1rem;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary-gradient);
+    }
+
+    .btn-success {
+      background: var(--success-gradient);
+    }
+
+    .btn-warning {
+      background: var(--warning-gradient);
+    }
+
+    /* Forms */
+    .form-control, .form-select {
+      border-radius: 10px;
+      border: 1px solid #e9ecef;
+      padding: 0.75rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.show {
+        transform: translateX(0);
+      }
+
+      .main-content {
+        margin-left: 0;
+      }
+
+      .stats-card {
+        margin-bottom: 1rem;
+      }
+    }
+
+    /* DARK MODE STYLES - COMPREHENSIVE OVERHAUL */
+    [data-bs-theme="dark"] {
+      --bs-body-bg: #0a0a0a !important;
+      --bs-body-color: #ffffff !important;
+      --bs-gray-100: #1a1a1a !important;
+      --bs-gray-200: #2d2d2d !important;
+      --bs-gray-300: #404040 !important;
+      --bs-gray-400: #6c6c6c !important;
+      --bs-gray-500: #999999 !important;
+      --bs-gray-600: #b3b3b3 !important;
+      --bs-gray-700: #cccccc !important;
+      --bs-gray-800: #e6e6e6 !important;
+      --bs-gray-900: #ffffff !important;
+      --bs-dark: #ffffff !important;
+      --bs-light: #1a1a1a !important;
+    }
+
+    /* Body dark mode */
+    [data-bs-theme="dark"] body {
+      background: #0a0a0a !important;
+      color: #ffffff !important;
+    }
+
+    /* Sidebar dark mode */
+    [data-bs-theme="dark"] .sidebar {
+      background: linear-gradient(180deg, #000000 0%, #1a1a1a 100%) !important;
+      box-shadow: 0 0 20px rgba(255,255,255,0.05) !important;
+    }
+
+    [data-bs-theme="dark"] .sidebar-brand {
+      border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+    [data-bs-theme="dark"] .sidebar-brand h4 {
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .nav-link {
+      color: rgba(255,255,255,0.8) !important;
+    }
+
+    [data-bs-theme="dark"] .nav-link:hover {
+      background: rgba(255,255,255,0.1) !important;
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .nav-link.active {
+      background: rgba(255,255,255,0.15) !important;
+      color: #ffffff !important;
+    }
+
+    /* Header dark mode */
+    [data-bs-theme="dark"] .top-header {
+      background: #1a1a1a !important;
+      border-bottom-color: #333333 !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+    }
+
+    [data-bs-theme="dark"] .header-toggle {
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] h5, [data-bs-theme="dark"] h2, [data-bs-theme="dark"] h6 {
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .text-muted {
+      color: #b3b3b3 !important;
+    }
+
+    [data-bs-theme="dark"] .text-dark {
+      color: #ffffff !important;
+    }
+
+    /* Stats cards dark mode */
+    [data-bs-theme="dark"] .stats-card {
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+    }
+
+    /* Charts and containers dark mode */
+    [data-bs-theme="dark"] .chart-container {
+      background: #1a1a1a !important;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+    }
+
+    [data-bs-theme="dark"] .chart-header {
+      background: #0a0a0a !important;
+      border-bottom-color: #333333 !important;
+    }
+
+    [data-bs-theme="dark"] .chart-header h5 {
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] #orgChart, 
+    [data-bs-theme="dark"] #sponsorChart {
+      background: #1a1a1a !important;
+    }
+
+    [data-bs-theme="dark"] .chart-btn {
+      background: #2d2d2d !important;
+      color: #ffffff !important;
+      border-color: #404040 !important;
+    }
+
+    [data-bs-theme="dark"] .chart-btn:hover {
+      background: #404040 !important;
+      border-color: #667eea !important;
+      color: #ffffff !important;
+    }
+
+    /* Tables dark mode */
+    [data-bs-theme="dark"] .modern-table {
+      background: #1a1a1a !important;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+    }
+
+    [data-bs-theme="dark"] .table th {
+      background: #0a0a0a !important;
+      color: #ffffff !important;
+      border-bottom: 1px solid #333333 !important;
+    }
+
+    [data-bs-theme="dark"] .table td {
+      color: #ffffff !important;
+      border-bottom: 1px solid #333333 !important;
+    }
+
+    [data-bs-theme="dark"] .table tbody tr {
+      border-bottom: 1px solid #333333 !important;
+    }
+
+    [data-bs-theme="dark"] .table tbody tr:hover {
+      background: #2d2d2d !important;
+    }
+
+    /* Buttons dark mode */
+    [data-bs-theme="dark"] .btn-outline-secondary {
+      color: #ffffff !important;
+      border-color: #404040 !important;
+    }
+
+    [data-bs-theme="dark"] .btn-outline-secondary:hover {
+      background: #404040 !important;
+      border-color: #404040 !important;
+      color: #ffffff !important;
+    }
+
+    /* Dropdown dark mode */
+    [data-bs-theme="dark"] .dropdown-menu {
+      background: #1a1a1a !important;
+      border-color: #333333 !important;
+    }
+
+    [data-bs-theme="dark"] .dropdown-item {
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .dropdown-item:hover {
+      background: #2d2d2d !important;
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .dropdown-divider {
+      border-color: #333333 !important;
+    }
+
+    /* Forms dark mode */
+    [data-bs-theme="dark"] .form-control,
+    [data-bs-theme="dark"] .form-select {
+      background: #2d2d2d !important;
+      border-color: #404040 !important;
+      color: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .form-control:focus,
+    [data-bs-theme="dark"] .form-select:focus {
+      background: #2d2d2d !important;
+      border-color: #667eea !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+    }
+
+    /* Badge colors in dark mode */
+    [data-bs-theme="dark"] .badge.bg-success {
+      background-color: #198754 !important;
+      color: #ffffff !important;
+    }
+
+    /* Text colors in dark mode */
+    [data-bs-theme="dark"] .text-success {
+      color: #20c997 !important;
+    }
+
+    [data-bs-theme="dark"] .text-danger {
+      color: #dc3545 !important;
+    }
+
+    [data-bs-theme="dark"] .text-info {
+      color: #0dcaf0 !important;
+    }
+
+    [data-bs-theme="dark"] .text-primary {
+      color: #0d6efd !important;
+    }
+
+    /* Card body text */
+    [data-bs-theme="dark"] .card-body {
+      color: inherit !important;
+    }
+
+    /* SVG and node styles for dark mode */
+    [data-bs-theme="dark"] .node rect {
+      fill: #2d2d2d !important;
+      stroke: #667eea !important;
+    }
+
+    [data-bs-theme="dark"] .node text {
+      fill: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .badge {
+      fill: #404040 !important;
+      stroke: #667eea !important;
+    }
+
+    [data-bs-theme="dark"] .badge-text {
+      fill: #ffffff !important;
+    }
+
+    [data-bs-theme="dark"] .link {
+      stroke: #667eea !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <h4><i class="bi bi-gem"></i> Rixile</h4>
+    </div>
+    <nav class="sidebar-nav">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link active" href="#overview" data-bs-toggle="pill">
+            <i class="bi bi-grid"></i> Overview
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#binary" data-bs-toggle="pill">
+            <i class="bi bi-diagram-3"></i> Binary Tree
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#referral" data-bs-toggle="pill">
+            <i class="bi bi-people"></i> Referrals
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#leadership" data-bs-toggle="pill">
+            <i class="bi bi-award"></i> Leadership
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#mentor" data-bs-toggle="pill">
+            <i class="bi bi-person-check"></i> Mentor Bonus
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#wallet" data-bs-toggle="pill">
+            <i class="bi bi-wallet2"></i> Wallet
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#store" data-bs-toggle="pill">
+            <i class="bi bi-shop"></i> Package Store
+          </a>
+        </li>
+        <li class="nav-item mt-3">
+          <a class="nav-link text-light" href="#settings">
+            <i class="bi bi-gear"></i> Settings
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link text-danger" href="logout.php">
+            <i class="bi bi-box-arrow-right"></i> Logout
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content" id="mainContent">
+    <!-- Header -->
+    <header class="top-header d-flex align-items-center px-4">
+      <button class="header-toggle me-3" id="sidebarToggle">
+        <i class="bi bi-list"></i>
+      </button>
+      <h5 class="mb-0 me-auto">Dashboard - John Doe</h5>
+      <div class="d-flex align-items-center">
+        <button class="btn btn-outline-secondary btn-sm me-2" id="themeToggle">
+          <i class="bi bi-moon"></i>
+        </button>
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-person-circle"></i>
+          </button>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+            <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+          </ul>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="container-fluid p-4">
+      <div class="tab-content">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview">
+          <div class="row mb-4">
+            <div class="col-12">
+              <h2 class="fw-bold text-dark mb-3">Welcome back, John!</h2>
+              <p class="text-muted">Here's what's happening with your MLM business today.</p>
+            </div>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="row mb-5">
+            <div class="col-lg-3 col-md-6 mb-4">
+              <div class="card stats-card primary">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6 class="card-title mb-2 opacity-75">Wallet Balance</h6>
+                      <h3 class="fw-bold mb-0">$1,245.50</h3>
+                    </div>
+                    <i class="bi bi-wallet stats-icon"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+              <div class="card stats-card success">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6 class="card-title mb-2 opacity-75">Total Referrals</h6>
+                      <h3 class="fw-bold mb-0">24</h3>
+                    </div>
+                    <i class="bi bi-people stats-icon"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+              <div class="card stats-card warning">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6 class="card-title mb-2 opacity-75">Pairs Today</h6>
+                      <h3 class="fw-bold mb-0">7/10</h3>
+                    </div>
+                    <i class="bi bi-diagram-3 stats-icon"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+              <div class="card stats-card info">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6 class="card-title mb-2 opacity-75">Team Volume</h6>
+                      <h3 class="fw-bold mb-0">$5,680</h3>
+                    </div>
+                    <i class="bi bi-graph-up stats-icon"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <div class="card chart-container">
+                <div class="chart-header">
+                  <h5 class="mb-0 fw-bold">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-3 col-6 mb-3">
+                      <button class="btn btn-primary w-100">
+                        <i class="bi bi-plus-circle me-2"></i>Buy Package
+                      </button>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                      <button class="btn btn-success w-100">
+                        <i class="bi bi-arrow-up-circle me-2"></i>Top Up
+                      </button>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                      <button class="btn btn-warning w-100">
+                        <i class="bi bi-arrow-down-circle me-2"></i>Withdraw
+                      </button>
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                      <button class="btn btn-info w-100">
+                        <i class="bi bi-arrow-left-right me-2"></i>Transfer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Transactions -->
+          <div class="row">
+            <div class="col-12">
+              <div class="modern-table">
+                <div class="chart-header">
+                  <h5 class="mb-0 fw-bold">Recent Transactions</h5>
+                </div>
+                <div class="table-responsive">
+                  <table class="table mb-0">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><i class="bi bi-arrow-up-circle text-success me-2"></i>Pair Bonus</td>
+                        <td class="fw-bold text-success">+$50.00</td>
+                        <td>2 hours ago</td>
+                        <td><span class="badge bg-success">Completed</span></td>
+                      </tr>
+                      <tr>
+                        <td><i class="bi bi-box text-primary me-2"></i>Package Purchase</td>
+                        <td class="fw-bold text-danger">-$100.00</td>
+                        <td>1 day ago</td>
+                        <td><span class="badge bg-success">Completed</span></td>
+                      </tr>
+                      <tr>
+                        <td><i class="bi bi-people text-info me-2"></i>Referral Bonus</td>
+                        <td class="fw-bold text-success">+$25.00</td>
+                        <td>2 days ago</td>
+                        <td><span class="badge bg-success">Completed</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Binary Tree Tab -->
+        <div class="tab-pane fade" id="binary">
+          <div class="row mb-4">
+            <div class="col-12">
+              <h2 class="fw-bold">Binary Tree Structure</h2>
+              <p class="text-muted">View your binary organization and pair statistics</p>
+            </div>
+          </div>
+
+          <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+              <div class="card stats-card primary">
+                <div class="card-body text-center">
+                  <h6 class="opacity-75 mb-2">Left Count</h6>
+                  <h2 class="fw-bold">15</h2>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="card stats-card success">
+                <div class="card-body text-center">
+                  <h6 class="opacity-75 mb-2">Right Count</h6>
+                  <h2 class="fw-bold">12</h2>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="card stats-card warning">
+                <div class="card-body text-center">
+                  <h6 class="opacity-75 mb-2">Pairs Today</h6>
+                  <h2 class="fw-bold">7/10</h2>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-header">
+              <h5 class="mb-0 fw-bold">Binary Organization Chart</h5>
+            </div>
+            <div id="orgChart">
+              <div class="chart-toolbar">
+                <div class="chart-btn" id="resetZoom">Reset</div>
+                <div class="chart-btn" id="expandAll">Expand All</div>
+                <div class="chart-btn" id="collapseAll">Collapse All</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other tabs would continue here... -->
+        <!-- Referral Tab -->
+        <div class="tab-pane fade" id="referral">
+          <div class="row mb-4">
+            <div class="col-12">
+              <h2 class="fw-bold">Referral Network</h2>
+              <p class="text-muted">Manage your direct referrals and track commissions</p>
+            </div>
+          </div>
+          <!-- Referral content here -->
+        </div>
+
+        <!-- Add more tabs as needed -->
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Sidebar toggle
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      
+      if (window.innerWidth <= 768) {
+        sidebar.classList.toggle('show');
+      } else {
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded');
+      }
+    });
+
+    // Theme toggle
+    document.getElementById('themeToggle').addEventListener('click', function() {
+      const html = document.documentElement;
+      const icon = this.querySelector('i');
+      
+      if (html.getAttribute('data-bs-theme') === 'dark') {
+        html.setAttribute('data-bs-theme', 'light');
+        icon.className = 'bi bi-moon';
+      } else {
+        html.setAttribute('data-bs-theme', 'dark');
+        icon.className = 'bi bi-sun';
+      }
+    });
+
+    // Close sidebar on mobile when clicking outside
+    document.addEventListener('click', function(e) {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      
+      if (window.innerWidth <= 768 && 
+          !sidebar.contains(e.target) && 
+          !sidebarToggle.contains(e.target) &&
+          sidebar.classList.contains('show')) {
+        sidebar.classList.remove('show');
+      }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      const sidebar = document.getElementById('sidebar');
+      const mainContent = document.getElementById('mainContent');
+      
+      if (window.innerWidth > 768) {
+        sidebar.classList.remove('show');
+        if (sidebar.classList.contains('collapsed')) {
+          mainContent.classList.add('expanded');
+        }
+      } else {
+        sidebar.classList.remove('collapsed');
+        mainContent.classList.remove('expanded');
+      }
+    });
+
+    // Sample D3 chart initialization (you would integrate with your existing chart code)
+    function initializeCharts() {
+      // Your existing D3 chart code would go here
+      // This is just a placeholder to show where it would integrate
+      console.log('Charts initialized');
+    }
+
+    // Initialize charts when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeCharts();
+    });
+  </script>
+</body>
+</html>
