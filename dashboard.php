@@ -1,13 +1,24 @@
 <?php
 // dashboard.php - Main user dashboard with navigation and dynamic content loading
-require 'config.php';
+require_once 'config.php';
+// require_once 'functions.php';
 if (!isset($_SESSION['user_id'])) redirect('login.php');
 
+// Fetch user data
 $uid = $_SESSION['user_id'];
+$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+$stmt->execute([$uid]);
+$user = $stmt->fetch();
+$role = $user['role'];
 
 // Get current page from URL parameter, default to 'overview'
 $page = $_GET['page'] ?? 'overview';
-$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'settings'];
+$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store'];
+
+if ($role === 'admin') {
+    $allowed_pages[] = 'users'; // Add users page for admins
+    $allowed_pages[] = 'settings'; // Add settings page for admins
+}
 
 // Validate page parameter
 if (!in_array($page, $allowed_pages)) {
@@ -88,6 +99,56 @@ if ($_POST['action'] ?? '') {
             redirect('dashboard.php?page=store', 'Package purchased & commissions calculated');
             break;
     }
+
+    /* ---------- Admin wallet actions (approve / reject) ---------- */
+    if ($page === 'wallet' && $user['role'] === 'admin' && ($_POST['action'] ?? '')) {
+        $id = (int)($_POST['req_id'] ?? 0);
+        $stmt = $pdo->prepare('SELECT * FROM ewallet_requests WHERE id = ? AND status = "pending"');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            redirect('dashboard.php?page=wallet', 'No pending request');
+        }
+
+        $pdo->beginTransaction();
+
+        // Ensure wallet row exists for the target user
+        $pdo->prepare('INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)')
+            ->execute([$row['user_id']]);
+
+        if ($_POST['action'] === 'approve') {
+            /* ----- Withdrawal ----- */
+            if ($row['type'] === 'withdraw') {
+                // Deduct from wallet
+                $pdo->prepare('UPDATE wallets SET balance = balance - ? WHERE user_id = ?')
+                    ->execute([$row['usdt_amount'], $row['user_id']]);
+                // Ledger entry
+                $pdo->prepare('INSERT INTO wallet_tx (user_id, type, amount) VALUES (?,"withdraw",?)')
+                    ->execute([$row['user_id'], -$row['usdt_amount']]);
+            }
+            /* ----- Top-up ----- */
+            else { // type = topup
+                // Credit wallet
+                $pdo->prepare('UPDATE wallets SET balance = balance + ? WHERE user_id = ?')
+                    ->execute([$row['usdt_amount'], $row['user_id']]);
+                // Ledger entry
+                $pdo->prepare('INSERT INTO wallet_tx (user_id, type, amount) VALUES (?,"topup",?)')
+                    ->execute([$row['user_id'], $row['usdt_amount']]);
+            }
+
+            $pdo->prepare('UPDATE ewallet_requests SET status="approved", updated_at=NOW() WHERE id = ?')
+                ->execute([$id]);
+
+        } elseif ($_POST['action'] === 'reject') {
+            // No money moved; just mark rejected
+            $pdo->prepare('UPDATE ewallet_requests SET status="rejected", updated_at=NOW() WHERE id = ?')
+                ->execute([$id]);
+        }
+
+        $pdo->commit();
+        redirect('dashboard.php?page=wallet', 'Request updated');
+    }
 }
 
 function flash() {
@@ -118,13 +179,18 @@ function flash() {
             </div>
             <nav class="space-y-1">
                 <a href="dashboard.php?page=overview" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'overview' ? 'bg-blue-500 text-white' : '' ?>">Overview</a>
+                <?php if ($role === 'admin'): ?>
+                    <a href="dashboard.php?page=users" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'users' ? 'bg-blue-500 text-white' : '' ?>">Users</a>                    
+                <?php endif; ?>
                 <a href="dashboard.php?page=binary" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'binary' ? 'bg-blue-500 text-white' : '' ?>">Binary Tree</a>
                 <a href="dashboard.php?page=referrals" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'referrals' ? 'bg-blue-500 text-white' : '' ?>">Referrals</a>
                 <a href="dashboard.php?page=leadership" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'leadership' ? 'bg-blue-500 text-white' : '' ?>">Matched Bonus</a>
                 <a href="dashboard.php?page=mentor" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'mentor' ? 'bg-blue-500 text-white' : '' ?>">Mentor Bonus</a>
                 <a href="dashboard.php?page=wallet" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'wallet' ? 'bg-blue-500 text-white' : '' ?>">Wallet</a>
                 <a href="dashboard.php?page=store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'store' ? 'bg-blue-500 text-white' : '' ?>">Package Store</a>
-                <a href="dashboard.php?page=settings" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'settings' ? 'bg-blue-500 text-white' : '' ?>">Settings</a>
+                <?php if ($role === 'admin'): ?>
+                    <a href="dashboard.php?page=settings" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'settings' ? 'bg-blue-500 text-white' : '' ?>">Settings</a>
+                <?php endif; ?>
                 <a href="logout.php" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md">Logout</a>
             </nav>
         </div>
@@ -156,7 +222,12 @@ function flash() {
                     
                     <?php 
                     // Include the appropriate page content
-                    $page_file = "pages/{$page}.php";
+                    if ($page === 'wallet' && $user['role'] === 'admin') {
+                        $page_file = 'pages/wallet_admin.php';
+                    } else {
+                        $page_file = "pages/{$page}.php";
+                    }
+
                     if (file_exists($page_file)) {
                         require $page_file;
                     } else {

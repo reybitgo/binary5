@@ -30,9 +30,7 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
         $sql = "
             SELECT id, username
             FROM users
-            WHERE sponsor_name IN (
-                  SELECT username FROM users WHERE id IN ($placeholders)
-                )";
+            WHERE sponsor_id IN ($placeholders)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($current);
 

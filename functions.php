@@ -41,12 +41,10 @@ function getGroupVolume(int $userId, PDO $pdo, ?int $maxLevel = 5): float
         if ($maxLevel && $level > $maxLevel) break;
 
         $placeholders = implode(',', array_fill(0, count($current), '?'));
-        $sql = "
+        $sql = $sql = "
             SELECT id
             FROM users
-            WHERE sponsor_name IN (
-                  SELECT username FROM users WHERE id IN ($placeholders)
-                )";
+            WHERE sponsor_id IN ($placeholders)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($current);
 
@@ -71,4 +69,16 @@ function getGroupVolume(int $userId, PDO $pdo, ?int $maxLevel = 5): float
     );
     $stmt->execute($descendants);
     return (float) $stmt->fetchColumn();
+}
+
+/**
+ * Returns the username for a given sponsor_id.
+ * Returns NULL if the id does not exist.
+ */
+function getUsernameById($id, PDO $pdo): ?string
+{
+    if (!is_null($id)) return null;
+    $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetchColumn() ?: null;
 }

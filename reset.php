@@ -52,8 +52,8 @@ try {
     
     // Create admin user
     echo "<pre>Creating admin user...</pre>";
-    $stmt = $pdo->prepare("INSERT INTO users (username, password, sponsor_name, upline_id, position, role) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute(['admin', $adminHash, 'root', null, null, 'admin']);
+    $stmt = $pdo->prepare("INSERT INTO users (username, password, sponsor_id, upline_id, position, role) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->execute(['admin', $adminHash, null, null, null, 'admin']);
     
     $adminId = $pdo->lastInsertId();
     echo "<pre>Admin user created with ID: $adminId</pre>";

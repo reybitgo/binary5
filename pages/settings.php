@@ -1,3 +1,4 @@
+<?php require_once 'functions.php'; ?>
 <!-- pages/settings.php -->
 <!-- Settings Section -->
 <h2 class="text-2xl font-bold text-gray-800 mb-4">Settings</h2>
@@ -22,7 +23,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Sponsor</label>
-                <p class="mt-1 text-sm text-gray-900"><?=htmlspecialchars($user['sponsor_name'] ?? 'None')?></p>
+                <p class="mt-1 text-sm text-gray-900"><?=htmlspecialchars(getUsernameById($user['sponsor_id'], $pdo) ?? 'None')?></p>
             </div>
         </div>
     </div>

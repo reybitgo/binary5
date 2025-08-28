@@ -25,7 +25,7 @@ try {
 }
 
 // -------------------- FETCH DATA -------------------
-$sql = "SELECT id, username, sponsor_name FROM users ORDER BY id ASC";
+$sql = "SELECT id, username, sponsor_id FROM users ORDER BY id ASC";
 $stmt = $pdo->query($sql);
 $rows = $stmt->fetchAll();
 
@@ -35,7 +35,7 @@ foreach ($rows as $r) {
   $map[$r['id']] = [
     'id'      => (int)$r['id'],
     'name'    => $r['username'],
-    'parent'  => $r['sponsor_name'] ? (int)$r['sponsor_name'] : null,
+    'parent'  => $r['sponsor_id'] ? (int)$r['sponsor_id'] : null,
     'children'=> []
   ];
 }

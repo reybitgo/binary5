@@ -2,9 +2,8 @@
 // pages/leadership.php
 // -------------------- SPONSOR TREE: ROOT = LOGGED-IN USER -------------------
 $stmt = $pdo->query(
-    "SELECT id, username, sponsor_name
-     FROM users
-     ORDER BY id ASC"
+    "SELECT id, username, sponsor_id
+     FROM users"
 );
 $sponsorRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -13,21 +12,16 @@ foreach ($sponsorRows as $r) {
     $sponsorMap[$r['id']] = [
         'id'           => (int)$r['id'],
         'name'         => $r['username'],
-        'sponsor_name' => $r['sponsor_name'],
+        'sponsor_id' => $r['sponsor_id'],
         'children'     => [],
     ];
 }
 
 // build parent → child links
 foreach ($sponsorMap as $id => &$node) {
-    $sponsorName = $node['sponsor_name'];
-    if ($sponsorName) {
-        foreach ($sponsorMap as $pid => &$parent) {
-            if ($parent['name'] === $sponsorName) {
-                $parent['children'][] = &$node;
-                break;
-            }
-        }
+    $sponsorId = $node['sponsor_id'];
+    if ($sponsorId && isset($sponsorMap[$sponsorId])) {
+        $sponsorMap[$sponsorId]['children'][] = &$node;
     }
 }
 unset($node, $parent);
@@ -58,7 +52,7 @@ function getIndirects(PDO $pdo, int $rootId, int $maxLevel = 5): array {
     for ($lvl = 1; $lvl <= $maxLevel; $lvl++) {
         if (!$current) break;
         $placeholders = implode(',', array_fill(0, count($current), '?'));
-        $sql = "SELECT id, username FROM users WHERE sponsor_name IN (SELECT username FROM users WHERE id IN ($placeholders))";
+        $sql = "SELECT id, username FROM users WHERE sponsor_id IN ($placeholders)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($current);
         $next = [];

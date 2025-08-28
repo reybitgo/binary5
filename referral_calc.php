@@ -15,12 +15,12 @@ function calc_referral(int $buyerId, float $pkgPrice, PDO $pdo): void
      * 1. Fetch the sponsor (direct referrer) of buyer
      *------------------------------------------------*/
     $stmt = $pdo->prepare(
-        'SELECT sponsor_name FROM users WHERE id = ?'
+        'SELECT sponsor_id FROM users WHERE id = ?'
     );
     $stmt->execute([$buyerId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$row || empty($row['sponsor_name'])) {
+    if (!$row || empty($row['sponsor_id'])) {
         // No sponsor → nothing to pay
         return;
     }
@@ -29,9 +29,9 @@ function calc_referral(int $buyerId, float $pkgPrice, PDO $pdo): void
      * 2. Resolve sponsor's user-id
      *------------------------------------------------*/
     $stmt = $pdo->prepare(
-        'SELECT id FROM users WHERE username = ?'
+        'SELECT id FROM users WHERE id = ?'
     );
-    $stmt->execute([$row['sponsor_name']]);
+    $stmt->execute([$row['sponsor_id']]);
     $sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$sponsor) {

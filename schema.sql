@@ -154,3 +154,9 @@ MODIFY COLUMN type ENUM(
 
 ALTER TABLE ewallet_requests
 ADD COLUMN wallet_address VARCHAR(255) NULL AFTER tx_hash;
+
+-- NEW
+ALTER TABLE users
+  DROP COLUMN sponsor_name,
+  ADD COLUMN sponsor_id INT DEFAULT NULL,
+  ADD FOREIGN KEY (sponsor_id) REFERENCES users(id) ON DELETE SET NULL;

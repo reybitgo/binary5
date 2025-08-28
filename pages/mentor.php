@@ -5,7 +5,7 @@ function getAncestors(PDO $pdo, int $rootId, int $maxLevel = 5): array {
     $allRows = [];
     $currentId = $rootId;
     for ($lvl = 1; $lvl <= $maxLevel; $lvl++) {
-        $stmt = $pdo->prepare('SELECT upline_id, username FROM users WHERE id = ?');
+        $stmt = $pdo->prepare('SELECT upline_id, sponsor_id FROM users WHERE id = ?');
         $stmt->execute([$currentId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row || !$row['upline_id']) break;

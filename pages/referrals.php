@@ -33,10 +33,10 @@
                         AND pkg_tx.type = 'package'
                         AND pkg_tx.amount < 0
                     JOIN wallet_tx rt
-                        ON rt.user_id = (SELECT id FROM users WHERE username = d.sponsor_name)
+                        ON rt.user_id = (SELECT id FROM users WHERE id = d.sponsor_id)
                         AND rt.type = 'referral_bonus'
                         AND rt.created_at BETWEEN pkg_tx.created_at AND DATE_ADD(pkg_tx.created_at, INTERVAL 1 SECOND)
-                    WHERE d.sponsor_name = (SELECT username FROM users WHERE id = ?)
+                    WHERE d.sponsor_id = (SELECT id FROM users WHERE id = ?)
                     GROUP BY d.id
                     ORDER BY d.username
                 ");

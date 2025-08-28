@@ -1,5 +1,4 @@
 <?php
-// leadership_calc.php - Leadership bonus calculation with requirement-based flushing
 require_once 'config.php';
 require_once 'functions.php';   // getPersonalVolume() & getGroupVolume()
 
@@ -29,16 +28,16 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
 
         /* 1️⃣  Find ancestor for this level */
         $stmt = $pdo->prepare(
-            'SELECT sponsor_name FROM users WHERE id = ?'
+            'SELECT sponsor_id FROM users WHERE id = ?'
         );
         $stmt->execute([$currentId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (empty($row['sponsor_name'])) break;
+        if (empty($row['sponsor_id'])) break;
 
         $stmt = $pdo->prepare(
-            'SELECT id FROM users WHERE username = ?'
+            'SELECT id FROM users WHERE id = ?'
         );
-        $stmt->execute([$row['sponsor_name']]);
+        $stmt->execute([$row['sponsor_id']]);
         $sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$sponsor) break;
 

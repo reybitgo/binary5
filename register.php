@@ -9,6 +9,12 @@ if ($_POST) {
     $uplineUser   = trim($_POST['upline_username']);
     $position     = $_POST['position']; // left / right
 
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+    $stmt->execute([$sponsor]);
+    $sponsorRow = $stmt->fetch();
+    if (!$sponsorRow) redirect('register.php', 'Sponsor username not found');
+    $sponsorId = (int)$sponsorRow['id'];
+
     // check upline
     $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
     $stmt->execute([$uplineUser]);
@@ -24,9 +30,9 @@ if ($_POST) {
 
     // create user
     $hash = password_hash($password, PASSWORD_DEFAULT);
-    $pdo->prepare("INSERT INTO users (username,password,sponsor_name,upline_id,position)
+    $pdo->prepare("INSERT INTO users (username,password,sponsor_id,upline_id,position)
                    VALUES (?,?,?,?,?)")
-        ->execute([$username,$hash,$sponsor,$uplineId,$position]);
+        ->execute([$username,$hash,$sponsorId,$uplineId,$position]);
     $uid = $pdo->lastInsertId();
 
     // create wallet
