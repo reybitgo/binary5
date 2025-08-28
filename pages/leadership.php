@@ -1,4 +1,5 @@
 <?php
+// pages/leadership.php
 // -------------------- SPONSOR TREE: ROOT = LOGGED-IN USER -------------------
 $stmt = $pdo->query(
     "SELECT id, username, sponsor_name

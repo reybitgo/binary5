@@ -1,3 +1,4 @@
+<!-- pages/overview.php -->
 <!-- Overview Section -->
 <h2 class="text-2xl font-bold text-gray-800 mb-4">Welcome back, <?=htmlspecialchars($user['username'])?>!</h2>
 <p class="text-gray-600 mb-6">Here's what's happening with your MLM business today.</p>

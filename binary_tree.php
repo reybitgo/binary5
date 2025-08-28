@@ -1,6 +1,6 @@
 <?php
 /******************************************************
- * index.php – Vertical Binary MLM Org Chart (PDO + D3)
+ * binary_tree.php – Vertical Binary MLM Org Chart (PDO + D3)
  * - Strict left/right placement (children array ordered left,right)
  * - Zoom (wheel), Pan (drag background), Collapsible on node click
  * - Initial view centered in the window

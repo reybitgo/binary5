@@ -1,4 +1,5 @@
 <?php
+// logout.php - User logout script
 require 'config.php';
 session_destroy();
 redirect('index.php', 'Logged out');

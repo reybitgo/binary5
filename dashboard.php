@@ -1,4 +1,5 @@
 <?php
+// dashboard.php - Main user dashboard with navigation and dynamic content loading
 require 'config.php';
 if (!isset($_SESSION['user_id'])) redirect('login.php');
 

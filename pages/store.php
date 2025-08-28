@@ -1,4 +1,6 @@
 <?php
+// pages/store.php
+// -------------------- PACKAGE STORE -------------------
 // packages
 $packages = $pdo->query("SELECT * FROM packages")->fetchAll();
 ?>

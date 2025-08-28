@@ -1,5 +1,6 @@
 <?php
 /**
+ * functions.php
  * Common helper functions used by both leadership_calc.php
  * and leadership_reverse_calc.php
  */

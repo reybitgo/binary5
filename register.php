@@ -1,4 +1,5 @@
 <?php
+// register.php - User registration page
 require 'config.php';
 
 if ($_POST) {

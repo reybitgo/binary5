@@ -1,4 +1,6 @@
 <?php
+// pages/mentor.php
+// -------------------- MENTOR BONUS: ANCESTORS & BONUSES -------------------
 function getAncestors(PDO $pdo, int $rootId, int $maxLevel = 5): array {
     $allRows = [];
     $currentId = $rootId;

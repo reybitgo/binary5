@@ -1,4 +1,5 @@
 <?php
+// index.php - Landing page with links to register or login
 require 'config.php';
 if (isset($_SESSION['user_id'])) redirect('dashboard.php');
 ?>

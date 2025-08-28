@@ -1,4 +1,5 @@
 <?php
+// config.php - Configuration settings and DB connection
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

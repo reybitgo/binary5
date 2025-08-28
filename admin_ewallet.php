@@ -1,5 +1,6 @@
 <?php
-require 'config.php';
+// admin_ewallet.php - Admin interface for managing e-wallet requests
+require_once 'config.php';
 if (!isset($_SESSION['user_id'])) redirect('login.php');
 
 // Simple role check (extend as needed)

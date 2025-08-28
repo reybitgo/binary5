@@ -1,3 +1,4 @@
+<!-- pages/wallet.php -->
 <!-- Wallet Section -->
 <h2 class="text-2xl font-bold text-gray-800 mb-4">Wallet</h2>
 

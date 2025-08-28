@@ -1,4 +1,5 @@
 <?php
+// leadership_calc.php - Leadership bonus calculation with requirement-based flushing
 require_once 'config.php';
 require_once 'functions.php';   // getPersonalVolume() & getGroupVolume()
 

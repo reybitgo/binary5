@@ -1,6 +1,6 @@
 <?php
 /******************************************************
- * index.php – D3.js Org Chart (draggable, zoomable, collapsible)
+ * indirect_tree.php – D3.js Org Chart (draggable, zoomable, collapsible)
  ******************************************************/
 
 // -------------------- DB CONFIG --------------------

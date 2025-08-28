@@ -1,4 +1,5 @@
 <?php
+// referral_calc.php - Referral commission calculation
 require_once 'config.php';
 
 /**

@@ -1,4 +1,5 @@
 <?php
+// pages/binary.php
 // -------------------- BINARY TREE: ROOT = LOGGED-IN USER -------------------
 $stmt = $pdo->query(
     "SELECT id, username, upline_id, position

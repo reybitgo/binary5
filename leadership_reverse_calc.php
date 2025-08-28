@@ -1,4 +1,5 @@
 <?php
+// leadership_reverse_calc.php - Leadership reverse bonus calculation with requirement-based flushing
 require_once 'config.php';
 require_once 'functions.php';   // getPersonalVolume(), getGroupVolume()
 

@@ -1,3 +1,4 @@
+<!-- pages/referrals.php -->
 <!-- Referrals Section -->
 <h2 class="text-2xl font-bold text-gray-800 mb-4">Referral Network</h2>
 <p class="text-gray-600 mb-6">Manage your direct referrals and track commissions</p>

@@ -1,4 +1,5 @@
 <?php
+// binary_calc.php - Calculate binary commissions and pairing after a package purchase
 require_once 'config.php';   // now brings in DAILY_MAX and PAIR_RATE
 
 /**

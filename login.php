@@ -1,4 +1,5 @@
 <?php
+// login.php - User login page
 require 'config.php';
 if ($_POST) {
     $stmt = $pdo->prepare("SELECT id,password FROM users WHERE username = ?");

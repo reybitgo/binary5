@@ -1,3 +1,4 @@
+-- schema.sql
 -- Active: 1755594857749@@127.0.0.1@3306@binary5_db
 DROP DATABASE IF EXISTS binary5_db;
 
