@@ -74,7 +74,7 @@ $indirects = getIndirects($pdo, $uid);
 ?>
 
 <!-- Leadership Section -->
-<h2 class="text-2xl font-bold text-gray-800 mb-4">Leadership</h2>
+<h2 class="text-2xl font-bold text-gray-800 mb-4">Matched Bonus</h2>
 
 <div class="bg-white shadow rounded-lg p-6 mb-6">
     <h3 class="text-lg font-semibold text-gray-700">Total Matched Bonus Earned</h3>
