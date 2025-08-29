@@ -160,3 +160,136 @@ ALTER TABLE users
   DROP COLUMN sponsor_name,
   ADD COLUMN sponsor_id INT DEFAULT NULL,
   ADD FOREIGN KEY (sponsor_id) REFERENCES users(id) ON DELETE SET NULL;
+
+  -- Rate limiting table
+CREATE TABLE login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    identifier VARCHAR(255),
+    attempt_time DATETIME,
+    INDEX idx_identifier (identifier),
+    INDEX idx_attempt_time (attempt_time)
+);
+
+-- Remember me tokens
+CREATE TABLE remember_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    token_hash VARCHAR(64),
+    expires_at DATETIME,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_token (token_hash),
+    INDEX idx_expires (expires_at)
+);
+
+-- Login logs for security auditing
+CREATE TABLE login_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    status ENUM('success', 'failed'),
+    attempted_username VARCHAR(255) NULL,
+    created_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_user_id (user_id),
+    INDEX idx_created_at (created_at)
+);
+
+-- Add columns to users table if not exists
+DELIMITER //
+
+CREATE PROCEDURE AddColumnsIfNotExists()
+BEGIN
+    -- Add 'status' column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'users'
+        AND TABLE_SCHEMA = 'binary5_db'
+        AND COLUMN_NAME = 'status'
+    ) THEN
+        ALTER TABLE users
+        ADD COLUMN status ENUM('active', 'inactive', 'suspended') DEFAULT 'active';
+    END IF;
+
+    -- Add 'last_login' column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'users'
+        AND TABLE_SCHEMA = 'binary5_db'
+        AND COLUMN_NAME = 'last_login'
+    ) THEN
+        ALTER TABLE users
+        ADD COLUMN last_login DATETIME NULL;
+    END IF;
+
+    -- Add 'failed_attempts' column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'users'
+        AND TABLE_SCHEMA = 'binary5_db'
+        AND COLUMN_NAME = 'failed_attempts'
+    ) THEN
+        ALTER TABLE users
+        ADD COLUMN failed_attempts INT DEFAULT 0;
+    END IF;
+
+    -- Add 'last_ip' column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'users'
+        AND TABLE_SCHEMA = 'binary5_db'
+        AND COLUMN_NAME = 'last_ip'
+    ) THEN
+        ALTER TABLE users
+        ADD COLUMN last_ip VARCHAR(45) NULL;
+    END IF;
+
+    -- Add 'email' column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'users'
+        AND TABLE_SCHEMA = 'binary5_db'
+        AND COLUMN_NAME = 'email'
+    ) THEN
+        ALTER TABLE users
+        ADD COLUMN email VARCHAR(255) UNIQUE NULL;
+    END IF;
+
+    -- Add 'email_verified' column if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'users'
+        AND TABLE_SCHEMA = 'binary5_db'
+        AND COLUMN_NAME = 'email_verified'
+    ) THEN
+        ALTER TABLE users
+        ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Execute the stored procedure
+CALL AddColumnsIfNotExists();
+
+-- Optionally, drop the procedure after use
+DROP PROCEDURE IF EXISTS AddColumnsIfNotExists;
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_token (token_hash),
+    INDEX idx_expires (expires_at)
+);

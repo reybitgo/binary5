@@ -1,6 +1,7 @@
 {
   "require": {
     "php": ">=8.0",
-    "web3p/web3.php": "^0.2.0"
+    "web3p/web3.php": "^0.2.0",
+    "phpmailer/phpmailer": "*"
   }
 }
