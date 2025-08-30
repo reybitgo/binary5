@@ -1,5 +1,5 @@
 <?php
-// referral_calc.php - Referral commission calculation
+// referral_calc.php - Fixed referral commission calculation
 require_once 'config.php';
 
 /**
@@ -28,33 +28,26 @@ function calc_referral(int $buyerId, float $pkgPrice, PDO $pdo): void
     /*-------------------------------------------------
      * 2. Resolve sponsor's user-id
      *------------------------------------------------*/
-    $stmt = $pdo->prepare(
-        'SELECT id FROM users WHERE id = ?'
-    );
-    $stmt->execute([$row['sponsor_id']]);
-    $sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$sponsor) {
-        // Sponsor username not found (edge-case)
-        return;
-    }
-
-    $sponsorId = (int) $sponsor['id'];
+    $sponsorId = (int)$row['sponsor_id'];
 
     /*-------------------------------------------------
      * 3. Calculate & credit commission
      *------------------------------------------------*/
-    // $commission = $pkgPrice * REFERRAL_RATE;   // already a % from config.php
-
     $pkgStmt = $pdo->prepare("SELECT referral_rate FROM packages WHERE id = (
         SELECT package_id FROM wallet_tx
         WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
     )");
     $pkgStmt->execute([$buyerId]);
     $pkg = $pkgStmt->fetch(PDO::FETCH_ASSOC);
-    if (!$pkg) return;
+    
+    if (!$pkg) {
+        // Fallback to default if no package found
+        $referralRate = 0.10; // Default 10%
+    } else {
+        $referralRate = (float)$pkg['referral_rate'];
+    }
 
-    $commission = $pkgPrice * $pkg['referral_rate'];
+    $commission = $pkgPrice * $referralRate;
 
     if ($commission <= 0.00) {
         return;
@@ -71,3 +64,4 @@ function calc_referral(int $buyerId, float $pkgPrice, PDO $pdo): void
          VALUES (?, "referral_bonus", ?)'
     )->execute([$sponsorId, $commission]);
 }
+?>

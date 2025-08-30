@@ -1,25 +1,14 @@
 <?php
-// binary_calc.php - Calculate binary commissions and pairing after a package purchase
-require_once 'config.php';   // now brings in DAILY_MAX and PAIR_RATE
+// binary_calc.php - Fixed binary commission calculation
+require_once 'config.php';
 
-/**
- * Calculate pairing & commission after a package purchase.
- *
- * @param int   $userId  User who bought the package
- * @param int   $pv      Point value of the package
- * @param PDO   $pdo     Active DB connection
- */
 function calc_binary(int $userId, int $pv, PDO $pdo): void
 {
-    /* -------------------------------------------------
-     * 1. Propagate leg counts up the tree
-     * -------------------------------------------------*/
+    /* 1. Propagate leg counts up the tree */
     $cursor = $userId;
     while (true) {
         $stmt = $pdo->prepare(
-            'SELECT id, upline_id, position
-             FROM users
-             WHERE id = ?'
+            'SELECT id, upline_id, position FROM users WHERE id = ?'
         );
         $stmt->execute([$cursor]);
         $node = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -35,125 +24,97 @@ function calc_binary(int $userId, int $pv, PDO $pdo): void
         $cursor = $node['upline_id'];
     }
 
-    /* -------------------------------------------------
-     * 2. Pay commissions upward (BOTTOM TO TOP)
-     * -------------------------------------------------*/
-    // Build ancestor list (bottom-up order) - include ALL ancestors
+    /* 2. Pay commissions upward */
     $ancestors = [];
     $cursor = $userId;
     while (true) {
         $stmt = $pdo->prepare(
-            'SELECT id, upline_id, left_count, right_count, pairs_today
-             FROM users
-             WHERE id = ?'
+            'SELECT id, upline_id, left_count, right_count, pairs_today FROM users WHERE id = ?'
         );
         $stmt->execute([$cursor]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) {
-            break;
-        }
-
-        // Add current user to ancestors if they have an upline OR if they are the root with counts
+        if (!$row) break;
         if ($row['upline_id'] || ($row['left_count'] > 0 || $row['right_count'] > 0)) {
             $ancestors[] = $row;
         }
-
-        // Stop if no upline (reached root)
-        if (!$row['upline_id']) {
-            break;
-        }
-
+        if (!$row['upline_id']) break;
         $cursor = $row['upline_id'];
     }
 
-    // Process ancestors from BOTTOM to TOP (remove array_reverse)
-    // This ensures we process the user closest to the purchaser first
     foreach ($ancestors as $anc) {
-        // Get fresh counts after previous processing
-        $stmt = $pdo->prepare(
-            'SELECT left_count, right_count, pairs_today
-             FROM users
-             WHERE id = ?'
-        );
-        $stmt->execute([$anc['id']]);
-        $freshData = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        $left  = (int) $freshData['left_count'];
-        $right = (int) $freshData['right_count'];
-        $alreadyPaid = (int) $freshData['pairs_today'];
-
-        // $pairsPossible = min($left, $right);
-        // $remainingCap  = max(0, DAILY_MAX - $alreadyPaid);
-        // $pairsToPay    = min($pairsPossible, $remainingCap);
-
+        // Get package-specific rates
         $pkgStmt = $pdo->prepare("SELECT daily_max, pair_rate FROM packages WHERE id = (
             SELECT package_id FROM wallet_tx
             WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
         )");
         $pkgStmt->execute([$anc['id']]);
         $pkg = $pkgStmt->fetch(PDO::FETCH_ASSOC);
-        if (!$pkg) return;   // no package, no bonus
+        
+        if (!$pkg) {
+            // Skip if no package found
+            continue;
+        }
 
-        $pairsPossible   = min($left, $right);
-        $remainingCap    = max(0, $pkg['daily_max'] - $alreadyPaid);
-        $pairsToPay      = min($pairsPossible, $remainingCap);
+        $freshData = $pdo->prepare(
+            'SELECT left_count, right_count, pairs_today FROM users WHERE id = ?'
+        )->execute([$anc['id']]);
+        $freshData = $pdo->prepare(
+            'SELECT left_count, right_count, pairs_today FROM users WHERE id = ?'
+        )->fetch(PDO::FETCH_ASSOC);
+
+        $left = (int) $freshData['left_count'];
+        $right = (int) $freshData['right_count'];
+        $alreadyPaid = (int) $freshData['pairs_today'];
+
+        $pairsPossible = min($left, $right);
+        $remainingCap = max(0, $pkg['daily_max'] - $alreadyPaid);
+        $pairsToPay = min($pairsPossible, $remainingCap);
 
         if ($pairsToPay > 0) {
-            // Daily pair value = pairs × (package price / PV)  ... but we only have PV.
-            // For simplicity we treat 1 PV = $1.  Adjust as needed.
-            // $dailyPairValue = $pairsToPay * 1;           // $1 per PV
-            // $bonus          = $dailyPairValue * PAIR_RATE;
-
-            $dailyPairValue  = $pairsToPay;               // 1 PV = 1 USD
-            $bonus           = $dailyPairValue * $pkg['pair_rate'];
+            $dailyPairValue = $pairsToPay;
+            $bonus = $dailyPairValue * $pkg['pair_rate'];
 
             // Credit wallet
             $pdo->prepare(
-                'UPDATE wallets
-                 SET balance = balance + ?
-                 WHERE user_id = ?'
+                'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
             )->execute([$bonus, $anc['id']]);
-
-            include 'leadership_calc.php';
-            calc_leadership($anc['id'], $bonus, $pdo);   // $bonus is the exact
-
-            include 'leadership_reverse_calc.php';
-            calc_leadership_reverse($anc['id'], $bonus, $pdo);
 
             // Record commission
             $pdo->prepare(
-                'INSERT INTO wallet_tx (user_id, type, amount)
-                 VALUES (?, "pair_bonus", ?)'
-            )->execute([$anc['id'], $bonus]);
+                'INSERT INTO wallet_tx (user_id, type, amount, package_id)
+                 VALUES (?, "pair_bonus", ?, ?)'
+            )->execute([$anc['id'], $bonus, $pkg['id']]);
 
             // Update daily counter
             $pdo->prepare(
-                'UPDATE users
-                 SET pairs_today = pairs_today + ?
-                 WHERE id = ?'
+                'UPDATE users SET pairs_today = pairs_today + ? WHERE id = ?'
             )->execute([$pairsToPay, $anc['id']]);
+
+            // Call leadership calculations
+            require_once 'leadership_calc.php';
+            calc_leadership($anc['id'], $bonus, $pdo);
+
+            require_once 'leadership_reverse_calc.php';
+            calc_leadership_reverse($anc['id'], $bonus, $pdo);
         }
 
-        /* Calculate and record flushed pairs */
-        $excessPairs = $pairsPossible - $pairsToPay; // Pairs that couldn't be paid due to daily limit
+        // Flush excess pairs
+        $excessPairs = $pairsPossible - $pairsToPay;
         if ($excessPairs > 0) {
-            $flushedValue = $excessPairs * 1; // $1 per flushed pair
             $pdo->prepare(
                 'INSERT INTO flushes (user_id, amount, flushed_on)
                  VALUES (?, ?, CURDATE())'
-            )->execute([$anc['id'], $flushedValue]);
+            )->execute([$anc['id'], $excessPairs]);
         }
 
-        /* Flush matched counts so they cannot be paid again */
-        $flushLeft  = $left  - $pairsPossible;  // Remove ALL matched pairs (paid + flushed)
+        // Reset counts after processing
+        $flushLeft = $left - $pairsPossible;
         $flushRight = $right - $pairsPossible;
 
-        // Update counts (remove paired amounts)
         $pdo->prepare(
-            'UPDATE users
-             SET left_count = ?, right_count = ?
-             WHERE id = ?'
+            'UPDATE users SET left_count = ?, right_count = ? WHERE id = ?'
         )->execute([$flushLeft, $flushRight, $anc['id']]);
     }
 }
+?>
