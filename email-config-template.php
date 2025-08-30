@@ -10,8 +10,8 @@ return [
         'port' => 587, // Port (587 for TLS, 465 for SSL)
         'encryption' => 'tls', // 'tls' or 'ssl'
         'username' => 'support@rixile.org', // Your email
-        'password' => 'Rixile@#123', // Your app password (not regular password)
-        'from_email' => 'noreply@rixile.org',
+        'password' => '-----', // Your app password (not regular password)
+        'from_email' => 'noreply@rixile.org',   
         'from_name' => 'Rixile Support',
         'reply_to' => 'support@rixile.org'
     ],
