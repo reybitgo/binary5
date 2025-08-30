@@ -1,33 +1,39 @@
 <?php
-// forgot-password.php - Password recovery system
+// forgot-password.php - Password recovery system with PHPMailer and debugging
+// Enable error reporting for debugging (disable in production)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Check if config.php exists
+if (!file_exists('config.php')) {
+    error_log('config.php not found in ' . __DIR__);
+    die('Server configuration error. Please contact support.');
+}
 require 'config.php';
 
-// First, let's add the necessary tables to your schema
-// Run this SQL to create the password reset table:
-/*
-CREATE TABLE IF NOT EXISTS password_resets (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    token_hash VARCHAR(64) NOT NULL,
-    expires_at DATETIME NOT NULL,
-    used BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_token (token_hash),
-    INDEX idx_expires (expires_at)
-);
+// Check if vendor/autoload.php exists
+if (!file_exists('vendor/autoload.php')) {
+    error_log('vendor/autoload.php not found in ' . __DIR__);
+    die('Server configuration error. Please contact support.');
+}
+require 'vendor/autoload.php';
 
-ALTER TABLE users 
-ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE NULL,
-ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
-*/
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 $errors = [];
 $success = false;
 $email = '';
 
+// Check if required functions exist
+if (!function_exists('generateCSRFToken') || !function_exists('validateCSRFToken')) {
+    error_log('CSRF functions missing in config.php');
+    $errors[] = 'Server configuration error. Please try again later.';
+}
+
 // Handle password reset request
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request' && empty($errors)) {
     // CSRF validation
     if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
         $errors[] = 'Invalid security token. Please refresh and try again.';
@@ -39,84 +45,110 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Please enter a valid email address.';
         } else {
-            // Check rate limiting (max 3 requests per hour per email)
-            $stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM password_resets 
-                WHERE user_id = (SELECT id FROM users WHERE email = ? LIMIT 1) 
-                AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            ");
-            $stmt->execute([$email]);
-            $recentRequests = $stmt->fetchColumn();
-            
-            if ($recentRequests >= 3) {
-                $errors[] = 'Too many password reset requests. Please try again later.';
-            } else {
-                // Look up user by email
-                $stmt = $pdo->prepare("SELECT id, username, email FROM users WHERE email = ? AND status = 'active'");
+            try {
+                // Check rate limiting (max 3 requests per hour per email)
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM password_resets 
+                    WHERE user_id = (SELECT id FROM users WHERE email = ? LIMIT 1) 
+                    AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                ");
                 $stmt->execute([$email]);
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                $recentRequests = $stmt->fetchColumn();
                 
-                if ($user) {
-                    // Generate secure token
-                    $token = bin2hex(random_bytes(32));
-                    $tokenHash = hash('sha256', $token);
-                    $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 hour expiry
-                    
-                    // Invalidate any existing tokens for this user
-                    $stmt = $pdo->prepare("UPDATE password_resets SET used = TRUE WHERE user_id = ? AND used = FALSE");
-                    $stmt->execute([$user['id']]);
-                    
-                    // Store token in database
-                    $stmt = $pdo->prepare("
-                        INSERT INTO password_resets (user_id, token_hash, expires_at) 
-                        VALUES (?, ?, ?)
-                    ");
-                    $stmt->execute([$user['id'], $tokenHash, $expiresAt]);
-                    
-                    // Create reset link
-                    $resetLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") 
-                        . "://$_SERVER[HTTP_HOST]" 
-                        . dirname($_SERVER['REQUEST_URI']) 
-                        . "/reset-password.php?token=" . $token;
-                    
-                    // Send email
-                    $subject = "Rixile Password Reset Request";
-                    $message = "
-                        <h2>Password Reset Request</h2>
-                        <p>Hello {$user['username']},</p>
-                        <p>We received a request to reset your password. Click the link below to set a new password:</p>
-                        <p><a href='{$resetLink}'>Reset Password</a></p>
-                        <p>This link will expire in 1 hour. If you did not request a reset, please ignore this email.</p>
-                        <p>Best regards,<br>Rixile Team</p>
-                    ";
-                    
-                    $headers = "MIME-Version: 1.0\r\n";
-                    $headers .= "Content-type: text/html; charset=UTF-8\r\n";
-                    $headers .= "From: support@rixile.org\r\n";
-                    $headers .= "Reply-To: support@rixile.org\r\n";
-                    
-                    if (!mail($user['email'], $subject, $message, $headers)) {
-                        error_log("Failed to send reset email to " . $user['email']);
-                    }
-                    
-                    $success = true;
+                if ($recentRequests >= 3) {
+                    $errors[] = 'Too many password reset requests. Please try again later.';
                 } else {
-                    // Don't reveal if email exists or not for security
-                    $success = true;
+                    // Look up user by email
+                    $stmt = $pdo->prepare("SELECT id, username, email FROM users WHERE email = ? AND status = 'active'");
+                    $stmt->execute([$email]);
+                    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($user) {
+                        // Generate secure token
+                        $token = bin2hex(random_bytes(32));
+                        $tokenHash = hash('sha256', $token);
+                        $expiresAt = date('Y-m-d H:i:s', time() + 3600); // 1 hour expiry
+                        
+                        // Invalidate any existing tokens for this user
+                        $stmt = $pdo->prepare("UPDATE password_resets SET used = TRUE WHERE user_id = ? AND used = FALSE");
+                        $stmt->execute([$user['id']]);
+                        
+                        // Store token in database
+                        $stmt = $pdo->prepare("
+                            INSERT INTO password_resets (user_id, token_hash, expires_at) 
+                            VALUES (?, ?, ?)
+                        ");
+                        $stmt->execute([$user['id'], $tokenHash, $expiresAt]);
+                        
+                        // Create reset link
+                        $resetLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") 
+                            . "://$_SERVER[HTTP_HOST]" 
+                            . dirname($_SERVER['REQUEST_URI']) 
+                            . "/reset-password.php?token=" . $token;
+                        
+                        // Send email using PHPMailer
+                        $mail = new PHPMailer(true);
+                        try {
+                            // Server settings (replace with your SMTP details)
+                            $mail->isSMTP();
+                            $mail->Host = 'smtp.example.com'; // e.g., smtp.gmail.com
+                            $mail->SMTPAuth = true;
+                            $mail->Username = 'support@rixile.org'; // Replace with your SMTP username
+                            $mail->Password = 'your_smtp_password'; // Replace with your SMTP password
+                            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                            $mail->Port = 587; // e.g., 587 for TLS, 465 for SSL
+                            
+                            // Sender and recipient
+                            $mail->setFrom('support@rixile.org', 'Rixile Support');
+                            $mail->addReplyTo('support@rixile.org', 'Rixile Support');
+                            $mail->addAddress($user['email'], $user['username']);
+                            
+                            // Content
+                            $mail->isHTML(true);
+                            $mail->Subject = 'Rixile Password Reset Request';
+                            $mail->Body = "
+                                <html>
+                                <body style='font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif; color: #333;'>
+                                    <h2>Password Reset Request</h2>
+                                    <p>Hello {$user['username']},</p>
+                                    <p>We received a request to reset your password. Click the button below to set a new password:</p>
+                                    <p style='margin: 20px 0;'>
+                                        <a href='$resetLink' style='background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: 600;'>Reset Password</a>
+                                    </p>
+                                    <p>This link will expire in 1 hour. If you did not request a reset, please ignore this email.</p>
+                                    <p>Best regards,<br>Rixile Team</p>
+                                </body>
+                                </html>
+                            ";
+                            $mail->AltBody = "Hello {$user['username']},\n\nWe received a request to reset your password. Click the link below to set a new password:\n$resetLink\n\nThis link will expire in 1 hour. If you did not request a reset, please ignore this email.\n\nBest regards,\nRixile Team";
+                            
+                            $mail->send();
+                            $success = true;
+                        } catch (Exception $e) {
+                            error_log("Failed to send reset email to {$user['email']}: {$mail->ErrorInfo}");
+                            $success = true; // Don't reveal email failure to user
+                        }
+                    } else {
+                        // Don't reveal if email exists for security
+                        $success = true;
+                    }
                 }
+            } catch (Exception $e) {
+                error_log("Database error in forgot-password.php: " . $e->getMessage());
+                $errors[] = 'A server error occurred. Please try again later.';
             }
         }
     }
 }
 
-$csrfToken = generateCSRFToken();
+$csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCSRFToken() : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - Binary MLM System</title>
+    <title>Forgot Password - Rixile</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -202,9 +234,6 @@ $csrfToken = generateCSRFToken();
             margin-bottom: 1rem;
             font-size: 0.95rem;
             color: #495057;
-        }
-        .text-break {
-            word-break: break-all;
         }
         .small {
             font-size: 0.875rem;
