@@ -44,7 +44,17 @@ function calc_referral(int $buyerId, float $pkgPrice, PDO $pdo): void
     /*-------------------------------------------------
      * 3. Calculate & credit commission
      *------------------------------------------------*/
-    $commission = $pkgPrice * REFERRAL_RATE;   // already a % from config.php
+    // $commission = $pkgPrice * REFERRAL_RATE;   // already a % from config.php
+
+    $pkgStmt = $pdo->prepare("SELECT referral_rate FROM packages WHERE id = (
+        SELECT package_id FROM wallet_tx
+        WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
+    )");
+    $pkgStmt->execute([$buyerId]);
+    $pkg = $pkgStmt->fetch(PDO::FETCH_ASSOC);
+    if (!$pkg) return;
+
+    $commission = $pkgPrice * $pkg['referral_rate'];
 
     if ($commission <= 0.00) {
         return;

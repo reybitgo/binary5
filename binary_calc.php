@@ -83,15 +83,30 @@ function calc_binary(int $userId, int $pv, PDO $pdo): void
         $right = (int) $freshData['right_count'];
         $alreadyPaid = (int) $freshData['pairs_today'];
 
-        $pairsPossible = min($left, $right);
-        $remainingCap  = max(0, DAILY_MAX - $alreadyPaid);
-        $pairsToPay    = min($pairsPossible, $remainingCap);
+        // $pairsPossible = min($left, $right);
+        // $remainingCap  = max(0, DAILY_MAX - $alreadyPaid);
+        // $pairsToPay    = min($pairsPossible, $remainingCap);
+
+        $pkgStmt = $pdo->prepare("SELECT daily_max, pair_rate FROM packages WHERE id = (
+            SELECT package_id FROM wallet_tx
+            WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
+        )");
+        $pkgStmt->execute([$anc['id']]);
+        $pkg = $pkgStmt->fetch(PDO::FETCH_ASSOC);
+        if (!$pkg) return;   // no package, no bonus
+
+        $pairsPossible   = min($left, $right);
+        $remainingCap    = max(0, $pkg['daily_max'] - $alreadyPaid);
+        $pairsToPay      = min($pairsPossible, $remainingCap);
 
         if ($pairsToPay > 0) {
             // Daily pair value = pairs × (package price / PV)  ... but we only have PV.
             // For simplicity we treat 1 PV = $1.  Adjust as needed.
-            $dailyPairValue = $pairsToPay * 1;           // $1 per PV
-            $bonus          = $dailyPairValue * PAIR_RATE;
+            // $dailyPairValue = $pairsToPay * 1;           // $1 per PV
+            // $bonus          = $dailyPairValue * PAIR_RATE;
+
+            $dailyPairValue  = $pairsToPay;               // 1 PV = 1 USD
+            $bonus           = $dailyPairValue * $pkg['pair_rate'];
 
             // Credit wallet
             $pdo->prepare(

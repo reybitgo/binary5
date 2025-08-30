@@ -14,13 +14,28 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
     if ($pairBonus <= 0) return;
 
     /* ---------- Level schedule ---------- */
-    $schedule = [
-        1 => ['pvt' => 100,  'gvt' =>   500,  'rate' => 0.05],
-        2 => ['pvt' => 200,  'gvt' =>  1000,  'rate' => 0.04],
-        3 => ['pvt' => 300,  'gvt' =>  2500,  'rate' => 0.03],
-        4 => ['pvt' => 500,  'gvt' =>  5000,  'rate' => 0.02],
-        5 => ['pvt' => 1000, 'gvt' => 10000,  'rate' => 0.01],
-    ];
+    // $schedule = [
+    //     1 => ['pvt' => 100,  'gvt' =>   500,  'rate' => 0.05],
+    //     2 => ['pvt' => 200,  'gvt' =>  1000,  'rate' => 0.04],
+    //     3 => ['pvt' => 300,  'gvt' =>  2500,  'rate' => 0.03],
+    //     4 => ['pvt' => 500,  'gvt' =>  5000,  'rate' => 0.02],
+    //     5 => ['pvt' => 1000, 'gvt' => 10000,  'rate' =>  ],
+    // ];
+
+    // 1) Build package-based schedule
+    $stmt = $pdo->prepare("
+        SELECT level, pvt_required, gvt_required, rate
+        FROM package_leadership_schedule
+        WHERE package_id = (
+            SELECT id FROM packages WHERE id = (
+                SELECT package_id FROM wallet_tx
+                WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
+            )
+        )
+    ");
+    $stmt->execute([$earnerId]);
+    $schedule = $stmt->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
+    if (!$schedule) return; // no package bought yet
 
     $currentId = $earnerId;
 

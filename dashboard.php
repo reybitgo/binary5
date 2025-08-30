@@ -1,4 +1,5 @@
 <?php
+ob_start();
 // dashboard.php - Main user dashboard with navigation and dynamic content loading
 require_once 'config.php';
 // require_once 'functions.php';

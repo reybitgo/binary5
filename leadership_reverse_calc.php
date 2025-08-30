@@ -12,13 +12,19 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
     if ($pairBonus <= 0) return;
 
     /* ---------- Mentor schedule (levels 1-5 below ancestor) ---------- */
-    $schedule = [
-        1 => ['pvt' => 100,  'gvt' =>   500,  'rate' => 0.03],
-        2 => ['pvt' => 200,  'gvt' =>  1000,  'rate' => 0.025],
-        3 => ['pvt' => 300,  'gvt' =>  2500,  'rate' => 0.02],
-        4 => ['pvt' => 500,  'gvt' =>  5000,  'rate' => 0.015],
-        5 => ['pvt' => 1000, 'gvt' => 10000,  'rate' => 0.01],
-    ];
+    $stmt = $pdo->prepare("
+        SELECT level, pvt_required, gvt_required, rate
+        FROM package_mentor_schedule
+        WHERE package_id = (
+            SELECT id FROM packages WHERE id = (
+                SELECT package_id FROM wallet_tx
+                WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
+            )
+        )
+    ");
+    $stmt->execute([$ancestorId]);
+    $schedule = $stmt->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
+    if (!$schedule) return;
 
     /* 1️⃣  Build every descendant 1-5 levels deep */
     $descendants = [];
