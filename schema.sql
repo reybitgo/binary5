@@ -255,3 +255,12 @@ INSERT INTO package_mentor_schedule (package_id, level, pvt_required, gvt_requir
     (3, 3, 500, 3000, 0.030),  -- Level 3: 500 PVT, 3000 GVT, 3.0% rate
     (3, 4, 800, 6000, 0.025),  -- Level 4: 800 PVT, 6000 GVT, 2.5% rate
     (3, 5, 1500, 12000, 0.020); -- Level 5: 1500 PVT, 12000 GVT, 2.0% rate
+
+    -- Run this SQL to fix the missing column
+ALTER TABLE wallet_tx ADD COLUMN package_id INT NULL AFTER user_id;
+
+-- Add foreign key constraint
+ALTER TABLE wallet_tx 
+ADD CONSTRAINT fk_wallet_tx_package 
+FOREIGN KEY (package_id) REFERENCES packages(id) 
+ON DELETE SET NULL;
