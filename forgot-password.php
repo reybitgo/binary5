@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 $mail->Host = 'smtp.hostinger.com'; // Change to your SMTP server
                                 $mail->SMTPAuth = true;
                                 $mail->Username = 'support@rixile.org'; // Change to your email
-                                $mail->Password = 'Rixile@#123'; // Change to your app password
+                                $mail->Password = '-----'; // Change to your app password
                                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                                 $mail->Port = 587;
                                 
