@@ -9,16 +9,16 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --secondary-gradient: linear-gradient(135deg, #10b981 0%, #047857 100%);
+            --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
             --dark-gradient: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
             --glass-bg: rgba(255, 255, 255, 0.1);
             --glass-border: rgba(255, 255, 255, 0.2);
             --text-primary: #1a1a1a;
             --text-secondary: #666;
             --surface: #ffffff;
-            --surface-soft: #f8fafc;
+            --surface-soft: #eff6ff;
             --border-light: rgba(0, 0, 0, 0.08);
             --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -76,6 +76,7 @@
             font-weight: 800;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             text-decoration: none;
             letter-spacing: -0.02em;
@@ -111,7 +112,34 @@
             width: 100%;
         }
 
-        .nav-cta {
+        .nav-auth {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nav-login {
+            color: var(--text-primary) !important;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            background: transparent;
+            text-decoration: none;
+        }
+
+        .nav-login:hover {
+            border-color: #3b82f6;
+            color: #3b82f6 !important;
+            text-decoration: none;
+        }
+
+        .nav-login::after {
+            display: none;
+        }
+
+        .nav-register {
             background: var(--primary-gradient);
             color: white !important;
             padding: 0.75rem 1.5rem;
@@ -119,14 +147,16 @@
             font-weight: 600;
             transition: all 0.3s ease;
             box-shadow: var(--shadow-soft);
+            text-decoration: none;
         }
 
-        .nav-cta:hover {
+        .nav-register:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-medium);
+            text-decoration: none;
         }
 
-        .nav-cta::after {
+        .nav-register::after {
             display: none;
         }
 
@@ -139,6 +169,45 @@
             cursor: pointer;
         }
 
+        /* Return to Top Button */
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: var(--shadow-large);
+            z-index: 999;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+        }
+
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+        }
+
+        .back-to-top:active {
+            transform: translateY(-2px) scale(1.05);
+        }
+
         /* Hero Section */
         .hero {
             min-height: 100vh;
@@ -146,7 +215,7 @@
             align-items: center;
             position: relative;
             overflow: hidden;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #10b981 100%);
         }
 
         .hero::before {
@@ -212,7 +281,7 @@
 
         .btn-primary {
             background: white;
-            color: #667eea;
+            color: #3b82f6;
             box-shadow: var(--shadow-medium);
         }
 
@@ -369,6 +438,18 @@
             color: white;
         }
 
+        .feature-card:nth-child(2) .feature-icon {
+            background: var(--secondary-gradient);
+        }
+
+        .feature-card:nth-child(3) .feature-icon {
+            background: var(--accent-gradient);
+        }
+
+        .feature-card:nth-child(4) .feature-icon {
+            background: var(--primary-gradient);
+        }
+
         .feature-card h3 {
             font-size: 1.25rem;
             font-weight: 600;
@@ -403,7 +484,7 @@
         .step-number {
             width: 80px;
             height: 80px;
-            background: var(--accent-gradient);
+            background: var(--primary-gradient);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -415,6 +496,14 @@
             position: relative;
         }
 
+        .step-card:nth-child(2) .step-number {
+            background: var(--secondary-gradient);
+        }
+
+        .step-card:nth-child(3) .step-number {
+            background: var(--accent-gradient);
+        }
+
         .step-card:not(:last-child) .step-number::after {
             content: '';
             position: absolute;
@@ -422,7 +511,7 @@
             left: 100%;
             width: 100px;
             height: 2px;
-            background: linear-gradient(90deg, #4facfe, transparent);
+            background: linear-gradient(90deg, #3b82f6, transparent);
             transform: translateY(-50%);
         }
 
@@ -457,7 +546,7 @@
         .benefit-icon {
             width: 60px;
             height: 60px;
-            background: var(--secondary-gradient);
+            background: var(--primary-gradient);
             border-radius: 15px;
             display: flex;
             align-items: center;
@@ -465,6 +554,18 @@
             font-size: 1.5rem;
             color: white;
             flex-shrink: 0;
+        }
+
+        .benefit-item:nth-child(2) .benefit-icon {
+            background: var(--secondary-gradient);
+        }
+
+        .benefit-item:nth-child(3) .benefit-icon {
+            background: var(--accent-gradient);
+        }
+
+        .benefit-item:nth-child(4) .benefit-icon {
+            background: var(--primary-gradient);
         }
 
         /* CTA Section */
@@ -581,6 +682,15 @@
                 display: block;
             }
 
+            .nav-auth {
+                gap: 0.5rem;
+            }
+
+            .nav-login, .nav-register {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+            }
+
             .hero-container {
                 grid-template-columns: 1fr;
                 gap: 3rem;
@@ -610,6 +720,30 @@
             .step-card:not(:last-child) .step-number::after {
                 display: none;
             }
+
+            .back-to-top {
+                bottom: 20px;
+                right: 20px;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-container {
+                padding: 0 1rem;
+            }
+
+            .nav-auth {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .nav-login, .nav-register {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
         }
     </style>
 </head>
@@ -623,13 +757,21 @@
                 <li><a href="#features">Features</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
                 <li><a href="#benefits">Benefits</a></li>
-                <li><a href="login.php" class="nav-cta">Login</a></li>
             </ul>
+            <div class="nav-auth">
+                <a href="login.php" class="nav-login">Login</a>
+                <a href="register.php" class="nav-register">Register</a>
+            </div>
             <button class="mobile-menu">
                 <i class="fas fa-bars"></i>
             </button>
         </div>
     </nav>
+
+    <!-- Return to Top Button -->
+    <button class="back-to-top" id="backToTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
     <!-- Hero Section -->
     <section class="hero" id="home">
@@ -849,6 +991,24 @@
             } else {
                 navbar.classList.remove('scrolled');
             }
+        });
+
+        // Back to top button functionality
+        const backToTopBtn = document.getElementById('backToTop');
+        
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('show');
+            } else {
+                backToTopBtn.classList.remove('show');
+            }
+        });
+
+        backToTopBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
         });
 
         // Animate elements on scroll
