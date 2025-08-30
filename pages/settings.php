@@ -28,13 +28,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_package'])) {
             throw new Exception('Package not found');
         }
         
-        // basic rates
+        // Update package basic info and rates
         $stmt = $pdo->prepare("UPDATE packages SET
+            name = ?,
+            price = ?,
+            pv = ?,
             daily_max = ?,
             pair_rate = ?,
             referral_rate = ?
         WHERE id = ?");
         $stmt->execute([
+            trim($_POST['name']),
+            max(0, (float)$_POST['price']),
+            max(0, (float)$_POST['pv']),
             max(0, (int)$_POST['daily_max']),
             max(0, min(1, (float)$_POST['pair_rate'])),
             max(0, min(1, (float)$_POST['referral_rate'])),
@@ -72,6 +78,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_package'])) {
         
     } catch (Exception $e) {
         $response = ['status' => 'error', 'message' => 'Failed to save settings: ' . $e->getMessage()];
+        echo json_encode($response);
+    }
+    
+    exit();
+}
+
+// ---- handle add new package ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_package'])) {
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    header('Content-Type: application/json');
+    header('Cache-Control: no-cache, must-revalidate');
+    
+    try {
+        // Validate input
+        $name = trim($_POST['new_name']);
+        $price = max(0, (float)$_POST['new_price']);
+        $pv = max(0, (float)$_POST['new_pv']);
+        
+        if (empty($name)) {
+            throw new Exception('Package name is required');
+        }
+        
+        // Check if package name already exists
+        $nameCheck = $pdo->prepare("SELECT COUNT(*) FROM packages WHERE name = ?");
+        $nameCheck->execute([$name]);
+        if ($nameCheck->fetchColumn() > 0) {
+            throw new Exception('Package name already exists');
+        }
+        
+        // Insert new package with default values
+        $stmt = $pdo->prepare("INSERT INTO packages (name, price, pv, daily_max, pair_rate, referral_rate) VALUES (?, ?, ?, 10, 0.05, 0.10)");
+        $stmt->execute([$name, $price, $pv]);
+        
+        $newPackageId = $pdo->lastInsertId();
+        
+        // Initialize default leadership schedule
+        foreach (range(1, 5) as $lvl) {
+            $stmt = $pdo->prepare("INSERT INTO package_leadership_schedule (package_id, level, pvt_required, gvt_required, rate) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$newPackageId, $lvl, $lvl * 100, $lvl * 50, $lvl * 0.01]);
+        }
+        
+        // Initialize default mentor schedule
+        foreach (range(1, 5) as $lvl) {
+            $stmt = $pdo->prepare("INSERT INTO package_mentor_schedule (package_id, level, pvt_required, gvt_required, rate) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$newPackageId, $lvl, $lvl * 50, $lvl * 25, $lvl * 0.005]);
+        }
+        
+        $response = ['status' => 'success', 'message' => 'New package added successfully', 'reload' => true];
+        echo json_encode($response);
+        
+    } catch (Exception $e) {
+        $response = ['status' => 'error', 'message' => 'Failed to add package: ' . $e->getMessage()];
+        echo json_encode($response);
+    }
+    
+    exit();
+}
+
+// ---- handle delete package ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_package'])) {
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+    
+    header('Content-Type: application/json');
+    header('Cache-Control: no-cache, must-revalidate');
+    
+    try {
+        $pid = (int)$_POST['package_id'];
+        
+        // Check if package exists
+        $packageExists = $pdo->prepare("SELECT COUNT(*) FROM packages WHERE id = ?");
+        $packageExists->execute([$pid]);
+        if (!$packageExists->fetchColumn()) {
+            throw new Exception('Package not found');
+        }
+        
+        // Check if package has users (prevent deletion if in use)
+        $userCheck = $pdo->prepare("SELECT COUNT(*) FROM users WHERE package_id = ?");
+        $userCheck->execute([$pid]);
+        if ($userCheck->fetchColumn() > 0) {
+            throw new Exception('Cannot delete package: It is currently assigned to users');
+        }
+        
+        // Delete related records first
+        $pdo->prepare("DELETE FROM package_leadership_schedule WHERE package_id = ?")->execute([$pid]);
+        $pdo->prepare("DELETE FROM package_mentor_schedule WHERE package_id = ?")->execute([$pid]);
+        
+        // Delete the package
+        $stmt = $pdo->prepare("DELETE FROM packages WHERE id = ?");
+        $stmt->execute([$pid]);
+        
+        $response = ['status' => 'success', 'message' => 'Package deleted successfully', 'reload' => true];
+        echo json_encode($response);
+        
+    } catch (Exception $e) {
+        $response = ['status' => 'error', 'message' => 'Failed to delete package: ' . $e->getMessage()];
         echo json_encode($response);
     }
     
@@ -255,6 +361,42 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             background-color: #3b82f6;
         }
 
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.9) translateY(-20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
         @media (max-width: 640px) {
             .toast-container {
                 top: 10px;
@@ -273,19 +415,143 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
     
+    <!-- Add Package Modal -->
+    <div id="addPackageModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold text-gray-800">Add New Package</h3>
+                <button onclick="closeAddPackageModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            
+            <form id="addPackageForm" onsubmit="return handleAddPackage(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Package Name
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="new_name" required
+                               class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                               placeholder="Enter package name">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Price ($)
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" step="0.01" min="0" name="new_price" required
+                                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                   placeholder="0.00">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                PV
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" step="0.01" min="0" name="new_pv" required
+                                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                   placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeAddPackageModal()"
+                            class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span class="button-text">Add Package</span>
+                        <span class="button-loading hidden">
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Adding...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <div class="container mx-auto px-4 py-8">
-        <h2 class="text-3xl font-bold text-gray-800 inferit-text-color mb-6">Package Settings</h2>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h2 class="text-3xl font-bold text-gray-800">Package Settings</h2>
+            <button onclick="openAddPackageModal()" 
+                    class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Add Package
+            </button>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <?php foreach ($packages as $pkg): ?>
-                <div class="bg-white shadow-lg rounded-lg p-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4">
-                        <?= htmlspecialchars($pkg['name']) ?> ($<?= number_format($pkg['price'], 2) ?>)
-                    </h3>
+                <div class="bg-white shadow-lg rounded-lg p-6 relative">
+                    <!-- Delete Button -->
+                    <button onclick="deletePackage(<?= $pkg['id'] ?>)"
+                            class="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"
+                            title="Delete Package">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
 
                     <form method="post" class="space-y-6 package-form" data-package-id="<?= $pkg['id'] ?>" onsubmit="return handleFormSubmit(event, this)">
                         <input type="hidden" name="package_id" value="<?= $pkg['id'] ?>">
                         <input type="hidden" name="save_package" value="1">
+                        
+                        <!-- Package Basic Info -->
+                        <div class="space-y-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Package Details</h3>
+                            
+                            <div class="space-y-2">
+                                <label class="block text-sm font-medium text-gray-600">
+                                    Package Name
+                                    <span class="ml-1 text-gray-400 cursor-help tooltip-container">
+                                        ℹ️
+                                        <span class="tooltip">Name of the package</span>
+                                    </span>
+                                </label>
+                                <input type="text" name="name" required
+                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                       value="<?= htmlspecialchars($pkg['name']) ?>">
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-600">
+                                        Price ($)
+                                        <span class="ml-1 text-gray-400 cursor-help tooltip-container">
+                                            ℹ️
+                                            <span class="tooltip">Package price in dollars</span>
+                                        </span>
+                                    </label>
+                                    <input type="number" step="0.01" min="0" name="price" required
+                                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                           value="<?= htmlspecialchars($pkg['price']) ?>">
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-600">
+                                        PV
+                                        <span class="ml-1 text-gray-400 cursor-help tooltip-container">
+                                            ℹ️
+                                            <span class="tooltip">Package volume points</span>
+                                        </span>
+                                    </label>
+                                    <input type="number" step="0.01" min="0" name="pv" required
+                                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                           value="<?= htmlspecialchars($pkg['pv']) ?>">
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- Base Rates -->
                         <div class="space-y-4">
@@ -525,31 +791,59 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
         // Initialize toast system
         const toastSystem = new ToastNotification();
 
+        // Modal Functions
+        function openAddPackageModal() {
+            const modal = document.getElementById('addPackageModal');
+            document.getElementById('addPackageForm').reset();
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeAddPackageModal() {
+            const modal = document.getElementById('addPackageModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('addPackageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAddPackageModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAddPackageModal();
+            }
+        });
+
         function validateForm(form) {
-            const inputs = form.querySelectorAll('input[type="number"]');
+            const inputs = form.querySelectorAll('input[type="number"], input[type="text"]');
             let valid = true;
             let errors = [];
             
             inputs.forEach(input => {
-                if (input.hasAttribute('required') && !input.value) {
+                if (input.hasAttribute('required') && !input.value.trim()) {
                     input.classList.add('border-red-500');
-                    errors.push(`${input.name} is required`);
+                    errors.push(`${input.name.replace('_', ' ')} is required`);
                     valid = false;
                 } else {
                     input.classList.remove('border-red-500');
                 }
 
-                if (input.name.includes('rate') && input.value) {
+                if (input.type === 'number' && input.value) {
                     const value = parseFloat(input.value);
-                    if (input.name.includes('pair_rate') || input.name.includes('referral_rate')) {
+                    if (input.name.includes('rate') && (input.name.includes('pair_rate') || input.name.includes('referral_rate'))) {
                         if (value < 0 || value > 1) {
                             input.classList.add('border-red-500');
-                            errors.push(`${input.name} must be between 0 and 1`);
+                            errors.push(`${input.name.replace('_', ' ')} must be between 0 and 1`);
                             valid = false;
                         }
                     } else if (value < 0) {
                         input.classList.add('border-red-500');
-                        errors.push(`${input.name} cannot be negative`);
+                        errors.push(`${input.name.replace('_', ' ')} cannot be negative`);
                         valid = false;
                     }
                 }
@@ -606,10 +900,17 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                 if (data.status === 'success') {
                     toastSystem.success(data.message);
                     // Update form default values
-                    form.querySelectorAll('input[type="number"]').forEach(input => {
+                    form.querySelectorAll('input[type="number"], input[type="text"]').forEach(input => {
                         input.defaultValue = input.value;
                         input.classList.remove('border-red-500');
                     });
+                    
+                    // Reload page if requested
+                    if (data.reload) {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    }
                 } else {
                     toastSystem.error(data.message);
                 }
@@ -629,6 +930,105 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             });
 
             return false;
+        }
+
+        function handleAddPackage(event) {
+            event.preventDefault();
+            const form = event.target;
+            
+            if (!validateForm(form)) return false;
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            setButtonState(submitButton, true);
+
+            const formData = new FormData(form);
+            formData.append('add_package', '1');
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    toastSystem.success(data.message);
+                    closeAddPackageModal();
+                    
+                    // Reload page if requested
+                    if (data.reload) {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    }
+                } else {
+                    toastSystem.error(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error details:', error);
+                toastSystem.error(`Failed to add package: ${error.message}`);
+            })
+            .finally(() => {
+                setButtonState(submitButton, false);
+            });
+
+            return false;
+        }
+
+        function deletePackage(packageId) {
+            if (!confirm('Are you sure you want to delete this package? This action cannot be undone.')) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('delete_package', '1');
+            formData.append('package_id', packageId);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    toastSystem.success(data.message);
+                    
+                    // Reload page if requested
+                    if (data.reload) {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    }
+                } else {
+                    toastSystem.error(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error details:', error);
+                toastSystem.error(`Failed to delete package: ${error.message}`);
+            });
         }
 
         // Tooltip handling
