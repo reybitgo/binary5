@@ -6,6 +6,7 @@ $errors = [];
 $success = false;
 $validToken = false;
 $token = $_GET['token'] ?? $_POST['token'] ?? '';
+$resetRequest = null;
 
 // Validate token
 if ($token) {
@@ -74,15 +75,29 @@ if ($token) {
                         $stmt = $pdo->prepare("UPDATE password_resets SET used = TRUE WHERE user_id = ? AND used = FALSE");
                         $stmt->execute([$resetRequest['user_id']]);
                         
-                        // Log the password reset
-                        $stmt = $pdo->prepare("
-                            INSERT INTO login_logs (user_id, ip_address, user_agent, status, created_at)
-                            VALUES (?, ?, ?, 'password_reset', NOW())
-                        ");
-                        $stmt->execute([$resetRequest['user_id'], $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT']]);
+                        // Log the password reset (create login_logs entry if it doesn't exist)
+                        try {
+                            $stmt = $pdo->prepare("
+                                INSERT INTO login_logs (user_id, ip_address, user_agent, status, attempted_username, created_at)
+                                VALUES (?, ?, ?, 'success', ?, NOW())
+                            ");
+                            $stmt->execute([
+                                $resetRequest['user_id'], 
+                                $_SERVER['REMOTE_ADDR'] ?? 'unknown', 
+                                $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                                $resetRequest['username']
+                            ]);
+                        } catch (Exception $logError) {
+                            // Log error but don't fail the password reset
+                            error_log('Failed to log password reset: ' . $logError->getMessage());
+                        }
                         
                         $pdo->commit();
                         $success = true;
+                        
+                        // Clear debug session data if exists
+                        unset($_SESSION['debug_reset_link']);
+                        unset($_SESSION['debug_user']);
                         
                         // Set success message for login page
                         $_SESSION['flash'] = 'Your password has been successfully reset. Please login with your new password.';
@@ -90,13 +105,13 @@ if ($token) {
                     } catch (Exception $e) {
                         $pdo->rollBack();
                         error_log('Password reset error: ' . $e->getMessage());
-                        $errors[] = 'An error occurred. Please try again.';
+                        $errors[] = 'An error occurred while resetting your password. Please try again.';
                     }
                 }
             }
         }
     } else {
-        $errors[] = 'This password reset link is invalid or has expired.';
+        $errors[] = 'This password reset link is invalid or has expired. Please request a new one.';
     }
 } else {
     redirect('forgot-password.php', 'No reset token provided.');
@@ -111,31 +126,145 @@ $csrfToken = generateCSRFToken();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password - Rixile</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="styles.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        /* Override specific styles with blue/green scheme */
         body {
-            background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(34, 197, 94) 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .reset-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            max-width: 500px;
+            width: 100%;
         }
         .reset-header {
-            background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(34, 197, 94) 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .reset-header h2 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.8rem;
+        }
+        .reset-header p {
+            margin: 0.5rem 0 0;
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        .reset-body {
+            padding: 2rem;
+        }
+        .form-floating {
+            position: relative;
+        }
+        .form-floating > label {
+            color: #6c757d;
         }
         .form-floating > .form-control:focus ~ label {
-            color: rgb(59, 130, 246);
+            color: #667eea;
         }
         .form-control:focus {
-            border-color: rgb(59, 130, 246);
-            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            z-index: 10;
+            padding: 5px;
+            transition: color 0.2s;
         }
         .password-toggle:hover {
-            color: rgb(59, 130, 246);
+            color: #667eea;
+        }
+        .password-strength {
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .password-strength::after {
+            content: '';
+            display: block;
+            height: 100%;
+            width: 0%;
+            background: #dc3545;
+            border-radius: 2px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+        .password-strength.strength-weak::after {
+            width: 33%;
+            background: #dc3545;
+        }
+        .password-strength.strength-medium::after {
+            width: 66%;
+            background: #ffc107;
+        }
+        .password-strength.strength-strong::after {
+            width: 100%;
+            background: #28a745;
+        }
+        .password-requirements {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        .requirement {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .requirement i {
+            margin-right: 8px;
+            color: #dc3545;
+        }
+        .requirement.met i {
+            color: #28a745;
         }
         .btn-reset {
-            background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(34, 197, 94) 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            color: white;
         }
         .btn-reset:hover {
-            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        .link-primary {
+            color: #667eea !important;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .link-primary:hover {
+            color: #764ba2 !important;
+            text-decoration: underline;
+        }
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        .success-icon {
+            font-size: 4rem;
+            color: #28a745;
         }
     </style>
 </head>
@@ -193,7 +322,8 @@ $csrfToken = generateCSRFToken();
                                            name="password" 
                                            placeholder="New Password"
                                            required
-                                           autocomplete="new-password">
+                                           autocomplete="new-password"
+                                           style="padding-right: 45px;">
                                     <label for="password">
                                         <i class="bi bi-lock-fill me-1"></i>
                                         New Password
@@ -226,7 +356,8 @@ $csrfToken = generateCSRFToken();
                                            name="confirm_password" 
                                            placeholder="Confirm Password"
                                            required
-                                           autocomplete="new-password">
+                                           autocomplete="new-password"
+                                           style="padding-right: 45px;">
                                     <label for="confirm_password">
                                         <i class="bi bi-lock-fill me-1"></i>
                                         Confirm Password
@@ -242,7 +373,7 @@ $csrfToken = generateCSRFToken();
                                 </button>
                                 
                                 <div class="text-center">
-                                    <a href="login.php" class="text-muted text-decoration-none">
+                                    <a href="login.php" class="link-primary">
                                         <i class="bi bi-arrow-left me-1"></i>
                                         Back to Login
                                     </a>
@@ -262,7 +393,7 @@ $csrfToken = generateCSRFToken();
                                     Request New Link
                                 </a>
                                 <div class="text-center">
-                                    <a href="login.php" class="text-muted text-decoration-none">
+                                    <a href="login.php" class="link-primary">
                                         <i class="bi bi-arrow-left me-1"></i>
                                         Back to Login
                                     </a>
@@ -274,6 +405,7 @@ $csrfToken = generateCSRFToken();
             </div>
         </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Password toggle functionality
@@ -300,35 +432,51 @@ $csrfToken = generateCSRFToken();
             const reqLowercase = document.getElementById('req-lowercase');
             const reqNumber = document.getElementById('req-number');
 
-            // Reset classes
+            // Reset classes and icons
             strengthBar.className = 'password-strength';
-            reqLength.classList.remove('met');
-            reqUppercase.classList.remove('met');
-            reqLowercase.classList.remove('met');
-            reqNumber.classList.remove('met');
+            [reqLength, reqUppercase, reqLowercase, reqNumber].forEach(req => {
+                if (req) {
+                    req.classList.remove('met');
+                    const icon = req.querySelector('i');
+                    icon.className = 'bi bi-circle';
+                }
+            });
 
             let strength = 0;
+            
+            // Check length
             if (password.length >= 8) {
                 strength++;
-                reqLength.classList.add('met');
-                reqLength.querySelector('i').classList.replace('bi-circle', 'bi-check-circle-fill');
+                reqLength?.classList.add('met');
+                const icon = reqLength?.querySelector('i');
+                if (icon) icon.className = 'bi bi-check-circle-fill';
             }
+            
+            // Check uppercase
             if (/[A-Z]/.test(password)) {
                 strength++;
-                reqUppercase.classList.add('met');
-                reqUppercase.querySelector('i').classList.replace('bi-circle', 'bi-check-circle-fill');
+                reqUppercase?.classList.add('met');
+                const icon = reqUppercase?.querySelector('i');
+                if (icon) icon.className = 'bi bi-check-circle-fill';
             }
+            
+            // Check lowercase
             if (/[a-z]/.test(password)) {
                 strength++;
-                reqLowercase.classList.add('met');
-                reqLowercase.querySelector('i').classList.replace('bi-circle', 'bi-check-circle-fill');
+                reqLowercase?.classList.add('met');
+                const icon = reqLowercase?.querySelector('i');
+                if (icon) icon.className = 'bi bi-check-circle-fill';
             }
+            
+            // Check number
             if (/[0-9]/.test(password)) {
                 strength++;
-                reqNumber.classList.add('met');
-                reqNumber.querySelector('i').classList.replace('bi-circle', 'bi-check-circle-fill');
+                reqNumber?.classList.add('met');
+                const icon = reqNumber?.querySelector('i');
+                if (icon) icon.className = 'bi bi-check-circle-fill';
             }
 
+            // Set strength indicator
             if (strength === 0) {
                 strengthBar.style.width = '0%';
             } else if (strength <= 2) {
@@ -346,16 +494,30 @@ $csrfToken = generateCSRFToken();
             const confirmPassword = document.getElementById('confirm_password').value;
             const submitBtn = this.querySelector('button[type="submit"]');
 
+            // Basic validation
+            if (password.length < 8 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+                e.preventDefault();
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                return;
+            }
+
+            // Show loading state
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
         });
 
         // Auto-hide alerts after 5 seconds
         setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
+            const alerts = document.querySelectorAll('.alert-danger, .alert-success');
             alerts.forEach(function(alert) {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
+                if (bootstrap.Alert.getOrCreateInstance) {
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    bsAlert.close();
+                }
             });
         }, 5000);
     </script>

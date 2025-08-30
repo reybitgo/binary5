@@ -200,10 +200,11 @@ $csrfToken = generateCSRFToken();
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         body {
-            background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(47, 104, 197) 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
+            justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .login-container {
@@ -213,9 +214,10 @@ $csrfToken = generateCSRFToken();
             overflow: hidden;
             max-width: 400px;
             width: 100%;
+            margin: 0 auto;
         }
         .login-header {
-            background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(47, 104, 197) 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%);
             color: white;
             padding: 2rem;
             text-align: center;
@@ -237,23 +239,25 @@ $csrfToken = generateCSRFToken();
             color: #6c757d;
         }
         .form-floating > .form-control:focus ~ label {
-            color: rgb(59, 130, 246);
+            color: #3b82f6;
         }
         .form-control:focus {
-            border-color: rgb(59, 130, 246);
+            border-color: #3b82f6;
             box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
         }
         .btn-login {
-            background: linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(47, 104, 197) 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%);
             border: none;
             padding: 0.75rem;
             font-weight: 600;
             letter-spacing: 0.5px;
             transition: transform 0.2s, box-shadow 0.2s;
+            color: white;
         }
         .btn-login:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+            color: white;
         }
         .password-toggle {
             cursor: pointer;
@@ -268,19 +272,19 @@ $csrfToken = generateCSRFToken();
             padding: 5px;
         }
         .password-toggle:hover {
-            color: rgb(59, 130, 246);
+            color: #3b82f6;
         }
         .form-check-input:checked {
-            background-color: rgb(59, 130, 246);
-            border-color: rgb(59, 130, 246);
+            background-color: #3b82f6;
+            border-color: #3b82f6;
         }
         .link-primary {
-            color: rgb(59, 130, 246) !important;
+            color: #3b82f6 !important;
             text-decoration: none;
             font-weight: 500;
         }
         .link-primary:hover {
-            color: rgb(47, 104, 197) !important;
+            color: #2f68c5 !important;
             text-decoration: underline;
         }
         .alert {
@@ -315,121 +319,123 @@ $csrfToken = generateCSRFToken();
         }
         .shake {
             animation: shake 0.5s;
-}
+        }
+        .copyright {
+            padding: 1rem 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12 col-md-6 col-lg-5">
-                <div class="login-container">
-                    <div class="login-header">
-                        <i class="bi bi-shield-lock-fill" style="font-size: 3rem;"></i>
-                        <h2 class="mt-3">Welcome Back</h2>
-                        <p>Login to access your dashboard</p>
+    <div class="container d-flex flex-column align-items-center min-vh-100">
+        <div class="login-container">
+            <div class="login-header">
+                <i class="bi bi-shield-lock-fill" style="font-size: 3rem;"></i>
+                <h2 class="mt-3">Welcome Back</h2>
+                <p>Login to access your dashboard</p>
+            </div>
+            
+            <div class="login-body">
+                <?php if (isset($_SESSION['flash'])): ?>
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <?= htmlspecialchars($_SESSION['flash']) ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    <?php unset($_SESSION['flash']); ?>
+                <?php endif; ?>
+                
+                <?php if (!empty($errors)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show shake" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <?php foreach ($errors as $error): ?>
+                            <?= htmlspecialchars($error) ?><br>
+                        <?php endforeach; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+                
+                <form method="POST" action="" id="loginForm" novalidate>
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" 
+                               class="form-control" 
+                               id="username" 
+                               name="username" 
+                               placeholder="Username or Email"
+                               value="<?= htmlspecialchars($username) ?>"
+                               required
+                               autocomplete="username">
+                        <label for="username">
+                            <i class="bi bi-person-fill me-1"></i>
+                            Username or Email
+                        </label>
                     </div>
                     
-                    <div class="login-body">
-                        <?php if (isset($_SESSION['flash'])): ?>
-                            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                                <i class="bi bi-info-circle-fill me-2"></i>
-                                <?= htmlspecialchars($_SESSION['flash']) ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                            <?php unset($_SESSION['flash']); ?>
-                        <?php endif; ?>
-                        
-                        <?php if (!empty($errors)): ?>
-                            <div class="alert alert-danger alert-dismissible fade show shake" role="alert">
-                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                                <?php foreach ($errors as $error): ?>
-                                    <?= htmlspecialchars($error) ?><br>
-                                <?php endforeach; ?>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <form method="POST" action="" id="loginForm" novalidate>
-                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                            
-                            <div class="form-floating mb-3">
-                                <input type="text" 
-                                       class="form-control" 
-                                       id="username" 
-                                       name="username" 
-                                       placeholder="Username or Email"
-                                       value="<?= htmlspecialchars($username) ?>"
-                                       required
-                                       autocomplete="username">
-                                <label for="username">
-                                    <i class="bi bi-person-fill me-1"></i>
-                                    Username or Email
-                                </label>
-                            </div>
-                            
-                            <div class="form-floating mb-3 position-relative">
-                                <input type="password" 
-                                       class="form-control" 
-                                       id="password" 
-                                       name="password" 
-                                       placeholder="Password"
-                                       required
-                                       autocomplete="current-password">
-                                <label for="password">
-                                    <i class="bi bi-lock-fill me-1"></i>
-                                    Password
-                                </label>
-                                <button type="button" class="password-toggle" onclick="togglePassword()">
-                                    <i class="bi bi-eye" id="toggleIcon"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <div class="form-check">
-                                    <input class="form-check-input" 
-                                           type="checkbox" 
-                                           id="remember" 
-                                           name="remember">
-                                    <label class="form-check-label" for="remember">
-                                        Remember me
-                                    </label>
-                                </div>
-                                <a href="forgot-password.php" class="link-primary">
-                                    Forgot password?
-                                </a>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary btn-login w-100 mb-3">
-                                <i class="bi bi-box-arrow-in-right me-2"></i>
-                                Sign In
-                            </button>
-                            
-                            <div class="divider">
-                                <span>OR</span>
-                            </div>
-                            
-                            <div class="text-center">
-                                <p class="mb-2">Don't have an account?</p>
-                                <a href="register.php" class="link-primary">
-                                    <i class="bi bi-person-plus-fill me-1"></i>
-                                    Create Account
-                                </a>
-                            </div>
-                            
-                            <div class="text-center mt-3">
-                                <a href="index.php" class="link-secondary text-decoration-none">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back to Home
-                                </a>
-                            </div>
-                        </form>
+                    <div class="form-floating mb-3 position-relative">
+                        <input type="password" 
+                               class="form-control" 
+                               id="password" 
+                               name="password" 
+                               placeholder="Password"
+                               required
+                               autocomplete="current-password">
+                        <label for="password">
+                            <i class="bi bi-lock-fill me-1"></i>
+                            Password
+                        </label>
+                        <button type="button" class="password-toggle" onclick="togglePassword()">
+                            <i class="bi bi-eye" id="toggleIcon"></i>
+                        </button>
                     </div>
-                </div>
-                
-                <div class="text-center mt-4 text-white">
-                    <small>&copy; <?= date('Y') ?> Binary MLM System. All rights reserved.</small>
-                </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   id="remember" 
+                                   name="remember">
+                            <label class="form-check-label" for="remember">
+                                Remember me
+                            </label>
+                        </div>
+                        <a href="forgot-password.php" class="link-primary">
+                            Forgot password?
+                        </a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-login w-100 mb-3">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>
+                        Sign In
+                    </button>
+                    
+                    <div class="divider">
+                        <span>OR</span>
+                    </div>
+                    
+                    <div class="text-center">
+                        <p class="mb-2">Don't have an account?</p>
+                        <a href="register.php" class="link-primary">
+                            <i class="bi bi-person-plus-fill me-1"></i>
+                            Create Account
+                        </a>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="index.php" class="link-secondary text-decoration-none">
+                            <i class="bi bi-arrow-left me-1"></i>
+                            Back to Home
+                        </a>
+                    </div>
+                </form>
             </div>
+        </div>
+        
+        <div class="copyright mt-4">
+            <small>&copy; <?= date('Y') ?> Binary MLM System. All rights reserved.</small>
         </div>
     </div>
     
@@ -470,7 +476,7 @@ $csrfToken = generateCSRFToken();
         });
         
         // Remove invalid class on input
-        document.getElementById('username').addEventListener('input', function() {
+        document.getElementById('username').addEventListener('input', function() {  
             this.classList.remove('is-invalid');
         });
         

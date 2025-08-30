@@ -1,39 +1,35 @@
 <?php
-// forgot-password.php - Password recovery system with PHPMailer and debugging
-// Enable error reporting for debugging (disable in production)
+// forgot-password.php - Password recovery system with PHPMailer and localhost fallback
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Check if config.php exists
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 if (!file_exists('config.php')) {
     error_log('config.php not found in ' . __DIR__);
     die('Server configuration error. Please contact support.');
 }
 require 'config.php';
 
-// Check if vendor/autoload.php exists
-if (!file_exists('vendor/autoload.php')) {
-    error_log('vendor/autoload.php not found in ' . __DIR__);
-    die('Server configuration error. Please contact support.');
+// Check if PHPMailer is available
+$phpmailerAvailable = file_exists('vendor/autoload.php');
+if ($phpmailerAvailable) {
+    require 'vendor/autoload.php';
 }
-require 'vendor/autoload.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 $errors = [];
 $success = false;
 $email = '';
+$debugInfo = [];
 
-// Check if required functions exist
-if (!function_exists('generateCSRFToken') || !function_exists('validateCSRFToken')) {
-    error_log('CSRF functions missing in config.php');
-    $errors[] = 'Server configuration error. Please try again later.';
-}
+// Configuration for localhost testing
+$isLocalhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', '::1']) || 
+               strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost:') === 0;
 
 // Handle password reset request
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request' && empty($errors)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'request') {
     // CSRF validation
     if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
         $errors[] = 'Invalid security token. Please refresh and try again.';
@@ -81,52 +77,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         $stmt->execute([$user['id'], $tokenHash, $expiresAt]);
                         
                         // Create reset link
-                        $resetLink = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") 
-                            . "://$_SERVER[HTTP_HOST]" 
-                            . dirname($_SERVER['REQUEST_URI']) 
-                            . "/reset-password.php?token=" . $token;
+                        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+                        $host = $_SERVER['HTTP_HOST'];
+                        $path = dirname($_SERVER['REQUEST_URI']);
+                        $resetLink = "$protocol://$host$path/reset-password.php?token=" . urlencode($token);
                         
-                        // Send email using PHPMailer
-                        $mail = new PHPMailer(true);
-                        try {
-                            // Server settings (replace with your SMTP details)
-                            $mail->isSMTP();
-                            $mail->Host = 'smtp.example.com'; // e.g., smtp.gmail.com
-                            $mail->SMTPAuth = true;
-                            $mail->Username = 'support@rixile.org'; // Replace with your SMTP username
-                            $mail->Password = 'your_smtp_password'; // Replace with your SMTP password
-                            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                            $mail->Port = 587; // e.g., 587 for TLS, 465 for SSL
-                            
-                            // Sender and recipient
-                            $mail->setFrom('support@rixile.org', 'Rixile Support');
-                            $mail->addReplyTo('support@rixile.org', 'Rixile Support');
-                            $mail->addAddress($user['email'], $user['username']);
-                            
-                            // Content
-                            $mail->isHTML(true);
-                            $mail->Subject = 'Rixile Password Reset Request';
-                            $mail->Body = "
-                                <html>
-                                <body style='font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif; color: #333;'>
-                                    <h2>Password Reset Request</h2>
-                                    <p>Hello {$user['username']},</p>
-                                    <p>We received a request to reset your password. Click the button below to set a new password:</p>
-                                    <p style='margin: 20px 0;'>
-                                        <a href='$resetLink' style='background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: 600;'>Reset Password</a>
-                                    </p>
-                                    <p>This link will expire in 1 hour. If you did not request a reset, please ignore this email.</p>
-                                    <p>Best regards,<br>Rixile Team</p>
-                                </body>
-                                </html>
-                            ";
-                            $mail->AltBody = "Hello {$user['username']},\n\nWe received a request to reset your password. Click the link below to set a new password:\n$resetLink\n\nThis link will expire in 1 hour. If you did not request a reset, please ignore this email.\n\nBest regards,\nRixile Team";
-                            
-                            $mail->send();
+                        // Attempt to send email
+                        $emailSent = false;
+                        $emailError = '';
+                        
+                        if ($phpmailerAvailable && !$isLocalhost) {
+                            // Try PHPMailer first
+                            try {
+                                $mail = new PHPMailer(true);
+                                
+                                // SMTP Configuration - Update these with your actual settings
+                                $mail->isSMTP();
+                                $mail->Host = 'smtp.hostinger.com'; // Change to your SMTP server
+                                $mail->SMTPAuth = true;
+                                $mail->Username = 'support@rixile.org'; // Change to your email
+                                $mail->Password = 'Rixile@#123'; // Change to your app password
+                                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                                $mail->Port = 587;
+                                
+                                // Recipients
+                                $mail->setFrom('noreply@rixile.org', 'Rixile Support');
+                                $mail->addAddress($user['email'], $user['username']);
+                                $mail->addReplyTo('support@rixile.org', 'Rixile Support');
+                                
+                                // Content
+                                $mail->isHTML(true);
+                                $mail->Subject = 'Rixile Password Reset Request';
+                                $mail->Body = generateEmailHTML($user['username'], $resetLink);
+                                $mail->AltBody = generateEmailText($user['username'], $resetLink);
+                                
+                                $mail->send();
+                                $emailSent = true;
+                            } catch (Exception $e) {
+                                $emailError = $mail->ErrorInfo;
+                                error_log("PHPMailer failed: " . $emailError);
+                            }
+                        }
+                        
+                        // Fallback to PHP mail() function or localhost debug
+                        if (!$emailSent) {
+                            if ($isLocalhost) {
+                                // For localhost testing - store reset link in session for debugging
+                                $_SESSION['debug_reset_link'] = $resetLink;
+                                $_SESSION['debug_user'] = $user['username'];
+                                $debugInfo[] = "Reset link generated for testing: $resetLink";
+                                $emailSent = true;
+                            } else {
+                                // Try PHP's built-in mail function as fallback
+                                $subject = 'Rixile Password Reset Request';
+                                $message = generateEmailText($user['username'], $resetLink);
+                                $headers = [
+                                    'From: noreply@rixile.org',
+                                    'Reply-To: support@rixile.org',
+                                    'X-Mailer: PHP/' . phpversion(),
+                                    'Content-Type: text/plain; charset=UTF-8'
+                                ];
+                                
+                                if (mail($user['email'], $subject, $message, implode("\r\n", $headers))) {
+                                    $emailSent = true;
+                                } else {
+                                    error_log("PHP mail() function failed for {$user['email']}");
+                                }
+                            }
+                        }
+                        
+                        if ($emailSent || $isLocalhost) {
                             $success = true;
-                        } catch (Exception $e) {
-                            error_log("Failed to send reset email to {$user['email']}: {$mail->ErrorInfo}");
-                            $success = true; // Don't reveal email failure to user
+                        } else {
+                            error_log("All email methods failed for {$user['email']}");
+                            // Don't reveal the failure to the user for security
+                            $success = true;
                         }
                     } else {
                         // Don't reveal if email exists for security
@@ -141,7 +166,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-$csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCSRFToken() : '';
+function generateEmailHTML($username, $resetLink) {
+    return "
+        <html>
+        <body style='font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6;'>
+            <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+                <h2 style='color: #667eea;'>Password Reset Request</h2>
+                <p>Hello <strong>" . htmlspecialchars($username) . "</strong>,</p>
+                <p>We received a request to reset your password for your Rixile account. Click the button below to set a new password:</p>
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='" . htmlspecialchars($resetLink) . "' 
+                       style='background: linear-gradient(135deg, #667eea, #764ba2); 
+                              color: white; 
+                              padding: 12px 30px; 
+                              text-decoration: none; 
+                              border-radius: 5px; 
+                              font-weight: 600;
+                              display: inline-block;'>
+                        Reset My Password
+                    </a>
+                </div>
+                <p>If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style='word-break: break-all; color: #667eea;'>" . htmlspecialchars($resetLink) . "</p>
+                <p><strong>Important:</strong> This link will expire in 1 hour for security reasons.</p>
+                <p>If you did not request a password reset, please ignore this email. Your account remains secure.</p>
+                <hr style='margin: 30px 0; border: none; height: 1px; background: #eee;'>
+                <p style='color: #666; font-size: 14px;'>
+                    Best regards,<br>
+                    The Rixile Team<br>
+                    <a href='mailto:support@rixile.org' style='color: #667eea;'>support@rixile.org</a>
+                </p>
+            </div>
+        </body>
+        </html>
+    ";
+}
+
+function generateEmailText($username, $resetLink) {
+    return "Password Reset Request\n\n" .
+           "Hello " . $username . ",\n\n" .
+           "We received a request to reset your password for your Rixile account.\n\n" .
+           "Click the link below to set a new password:\n" .
+           $resetLink . "\n\n" .
+           "This link will expire in 1 hour for security reasons.\n\n" .
+           "If you did not request a password reset, please ignore this email. Your account remains secure.\n\n" .
+           "Best regards,\n" .
+           "The Rixile Team\n" .
+           "support@rixile.org";
+}
+
+$csrfToken = generateCSRFToken();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -164,7 +238,7 @@ $csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCS
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
-            max-width: 450px;
+            max-width: 500px;
             width: 100%;
         }
         .reset-header {
@@ -235,8 +309,26 @@ $csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCS
             font-size: 0.95rem;
             color: #495057;
         }
-        .small {
-            font-size: 0.875rem;
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .debug-info h6 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+        .debug-link {
+            word-break: break-all;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 5px;
+            border: 1px solid #ffeaa7;
+            margin-top: 0.5rem;
         }
     </style>
 </head>
@@ -259,6 +351,25 @@ $csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCS
                                 <p class="text-muted mb-4">
                                     If an account exists with the provided email, a password reset link has been sent. Please check your inbox (and spam folder).
                                 </p>
+                                
+                                <?php if ($isLocalhost && !empty($debugInfo)): ?>
+                                    <div class="debug-info text-start">
+                                        <h6><i class="bi bi-bug-fill me-2"></i>Development Mode - Debug Information</h6>
+                                        <p><strong>User:</strong> <?= htmlspecialchars($_SESSION['debug_user'] ?? 'Unknown') ?></p>
+                                        <p><strong>Reset Link:</strong></p>
+                                        <div class="debug-link">
+                                            <a href="<?= htmlspecialchars($_SESSION['debug_reset_link'] ?? '#') ?>" 
+                                               target="_blank" class="text-decoration-none">
+                                                <?= htmlspecialchars($_SESSION['debug_reset_link'] ?? '') ?>
+                                            </a>
+                                        </div>
+                                        <small class="text-muted d-block mt-2">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            This debug information is only shown on localhost
+                                        </small>
+                                    </div>
+                                <?php endif; ?>
+                                
                                 <div class="mt-4">
                                     <a href="login.php" class="btn btn-reset w-100">
                                         <i class="bi bi-arrow-left me-2"></i>
@@ -272,6 +383,14 @@ $csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCS
                                 <i class="bi bi-info-circle-fill me-2"></i>
                                 Enter the email address associated with your account and we'll send you a link to reset your password.
                             </div>
+                            
+                            <?php if ($isLocalhost): ?>
+                                <div class="debug-info">
+                                    <h6><i class="bi bi-laptop me-2"></i>Development Mode Active</h6>
+                                    <p class="mb-1">You're running on localhost. Reset links will be displayed on this page for testing.</p>
+                                    <small>PHPMailer Available: <?= $phpmailerAvailable ? 'Yes' : 'No' ?></small>
+                                </div>
+                            <?php endif; ?>
                             
                             <?php if (!empty($errors)): ?>
                                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -350,7 +469,6 @@ $csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCS
                 return false;
             }
             
-            // Basic email validation
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(emailValue)) {
                 e.preventDefault();
@@ -371,10 +489,12 @@ $csrfToken = empty($errors) && function_exists('generateCSRFToken') ? generateCS
         
         // Auto-hide alerts after 5 seconds
         setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
+            const alerts = document.querySelectorAll('.alert-danger, .alert-success');
             alerts.forEach(function(alert) {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
+                if (bootstrap.Alert.getOrCreateInstance) {
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    bsAlert.close();
+                }
             });
         }, 5000);
     </script>
