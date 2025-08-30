@@ -13,7 +13,7 @@ $role = $user['role'];
 
 // Get current page from URL parameter, default to 'overview'
 $page = $_GET['page'] ?? 'overview';
-$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store'];
+$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'profile'];
 
 if ($role === 'admin') {
     $allowed_pages[] = 'users'; // Add users page for admins
@@ -209,7 +209,7 @@ function flash() {
                         <h1 class="text-xl font-semibold text-gray-800 ml-4">Dashboard - <?=htmlspecialchars($user['username'])?></h1>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <a href="dashboard.php?page=settings" class="text-gray-600 hover:text-blue-500">Settings</a>
+                        <a href="dashboard.php?page=profile" class="text-gray-600 hover:text-blue-500">Profile</a>
                         <a href="logout.php" class="text-gray-600 hover:text-blue-500">Logout</a>
                     </div>
                 </div>
