@@ -4,25 +4,27 @@
  ******************************************************/
 
 // -------------------- DB CONFIG --------------------
-$DB_HOST = '127.0.0.1';
-$DB_NAME = 'binary5_db';
-$DB_USER = 'root';
-$DB_PASS = '';
-$DB_CHARSET = 'utf8mb4';
+// $DB_HOST = '127.0.0.1';
+// $DB_NAME = 'binary5_db';
+// $DB_USER = 'root';
+// $DB_PASS = '';
+// $DB_CHARSET = 'utf8mb4';
 
-// -------------------- PDO CONNECT ------------------
-$dsn = "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=$DB_CHARSET";
-$options = [
-  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-  PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-];
-try {
-  $pdo = new PDO($dsn, $DB_USER, $DB_PASS, $options);
-} catch (Exception $e) {
-  http_response_code(500);
-  echo "DB connection error: " . htmlspecialchars($e->getMessage());
-  exit;
-}
+// // -------------------- PDO CONNECT ------------------
+// $dsn = "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=$DB_CHARSET";
+// $options = [
+//   PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+//   PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+// ];
+// try {
+//   $pdo = new PDO($dsn, $DB_USER, $DB_PASS, $options);
+// } catch (Exception $e) {
+//   http_response_code(500);
+//   echo "DB connection error: " . htmlspecialchars($e->getMessage());
+//   exit;
+// }
+
+require_once 'config.php';
 
 // -------------------- FETCH DATA -------------------
 $sql = "SELECT id, username, sponsor_id FROM users ORDER BY id ASC";

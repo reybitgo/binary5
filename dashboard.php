@@ -211,7 +211,7 @@ function flash() {
                     </div>
                     <div class="flex items-center space-x-4">
                         <a href="dashboard.php?page=profile" class="text-gray-600 hover:text-blue-500">Profile</a>
-                        <a href="logout.php" class="text-gray-600 hover:text-blue-500">Logout</a>
+                        <!-- <a href="logout.php" class="text-gray-600 hover:text-blue-500">Logout</a> -->
                     </div>
                 </div>
             </header>

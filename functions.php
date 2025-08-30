@@ -71,14 +71,22 @@ function getGroupVolume(int $userId, PDO $pdo, ?int $maxLevel = 5): float
     return (float) $stmt->fetchColumn();
 }
 
-/**
- * Returns the username for a given sponsor_id.
- * Returns NULL if the id does not exist.
- */
-function getUsernameById($id, PDO $pdo): ?string
+function getUsernameById(int $id, PDO $pdo): ?string
 {
-    if (!is_null($id)) return null;
-    $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
-    $stmt->execute([$id]);
-    return $stmt->fetchColumn() ?: null;
+    // Validate ID is positive
+    if ($id <= 0) {
+        return null;
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        $username = $stmt->fetchColumn();
+
+        return $username !== false ? $username : null;
+    } catch (PDOException $e) {
+        // Log error (in a production environment, use a proper logging mechanism)
+        error_log("Error fetching username for ID $id: " . $e->getMessage());
+        return null;
+    }
 }
