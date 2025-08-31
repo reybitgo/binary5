@@ -71,9 +71,9 @@ $walletBalance = $walletStmt->fetchColumn() ?: 0.00;
         <p class="text-sm text-gray-500 mt-2">
             Daily: <?=$p['daily_max']?> pairs<br>
             Pair Rate: <?=($p['pair_rate']*100)?>%<br>
-            Referral: <?=($p['referral_rate']*100)?>%
-            Matched Bonus: 5 Levels deep
-            Mentor Bonus: 5 Levels reverse
+            Referral: <?=($p['referral_rate']*100)?>%<br>
+            Matched Bonus: 5 Levels deep<br>
+            Mentor Bonus: 5 Levels reverse<br>
         </p>
         <form method="post" action="dashboard.php" class="mt-4">
             <input type="hidden" name="package_id" value="<?=$p['id']?>">

@@ -1,19 +1,21 @@
 <?php
 // config.php - Configuration settings and DB connection
+date_default_timezone_set('Asia/Manila');
+
 if (!ob_get_level()) ob_start();
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 /* ---------- Binary commission settings ---------- */
-// define('DAILY_MAX',     10);   // max pairs counted per user per day
-// define('PAIR_RATE',     0.20); // 20% of the daily pair value
-// define('REFERRAL_RATE', 0.10); // 10% direct referral commission from package price
-// define('LEADERSHIP_RATE', 0.05);   // 5 % of every binary pair earned by 1-5 level indirects
-// define('LEADERSHIP_REVERSE_RATE', 0.05);   // 5 % of every binary pair earned by 1-5 level indirects
+// define('DAILY_MAX',     10);
+// define('PAIR_RATE',     0.20);
+// define('REFERRAL_RATE', 0.10);
+// define('LEADERSHIP_RATE', 0.05);
+// define('LEADERSHIP_REVERSE_RATE', 0.05);
 
 define('B2P_CONTRACT', '0xf8ab9ff465c612d5be6a56716adf95c52f8bc72d');
-define('USDT_B2P_RATE', 1); // 1 USDT = 1 B2P (change if market differs)
+define('USDT_B2P_RATE', 1);
 
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'binary5_db');
@@ -26,6 +28,9 @@ $pdo = new PDO(
     DB_PASS,
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
+
+// Set MySQL timezone to Asia/Manila
+$pdo->exec("SET time_zone = '+08:00'");
 
 // Simple helper
 function redirect($url, $msg = null)
@@ -45,3 +50,4 @@ function generateCSRFToken(): string {
 function validateCSRFToken(string $token): bool {
     return !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
+?>
