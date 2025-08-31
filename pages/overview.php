@@ -4,34 +4,42 @@
 <p class="text-gray-600 mb-6">Here's what's happening with your MLM business today.</p>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-700">Wallet Balance</h3>
-        <p class="text-2xl text-blue-500">$<?=number_format($user['balance'], 2)?></p>
-    </div>
-    <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-700">Total Referrals</h3>
-        <p class="text-2xl text-blue-500">
-            <?php
-            $directs = $pdo->prepare("SELECT COUNT(*) FROM users WHERE sponsor_id = ?");
-            $directs->execute([$user['username']]);
-            echo $directs->fetchColumn();
-            ?>
-        </p>
-    </div>
-    <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-700">Pairs Today</h3>
-        <p class="text-2xl text-blue-500"><?=$user['pairs_today']?>/10</p>
-    </div>
-    <div class="bg-white shadow rounded-lg p-6">
-        <h3 class="text-lg font-semibold text-gray-700">Team Volume</h3>
-        <p class="text-2xl text-blue-500">
-            <?php
-            include 'functions.php';
-            $volume = getGroupVolume($uid, $pdo, 0);
-            echo '$'.number_format($volume, 2);
-            ?>
-        </p>
-    </div>
+    <a href="dashboard.php?page=wallet">
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-700">Wallet Balance</h3>
+            <p class="text-2xl text-blue-500">$<?=number_format($user['balance'], 2)?></p>
+        </div>
+    </a>
+    <a href="dashboard.php?page=referrals">    
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-700">Total Referrals</h3>
+            <p class="text-2xl text-blue-500">
+                <?php
+                $directs = $pdo->prepare("SELECT COUNT(*) FROM users WHERE sponsor_id = ?");
+                $directs->execute([$user['username']]);
+                echo $directs->fetchColumn();
+                ?>
+            </p>
+        </div>
+    </a>
+    <a href="dashboard.php?page=binary">
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-700">Pairs Today</h3>
+            <p class="text-2xl text-blue-500"><?=$user['pairs_today']?>/10</p>
+        </div>
+    </a>
+    <a href="dashboard.php?page=leadership">
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-700">Team Volume</h3>
+            <p class="text-2xl text-blue-500">
+                <?php
+                include 'functions.php';
+                $volume = getGroupVolume($uid, $pdo, 0);
+                echo '$'.number_format($volume, 2);
+                ?>
+            </p>
+        </div>
+    </a>
 </div>
 
 <div class="mt-6 bg-white shadow rounded-lg p-6">

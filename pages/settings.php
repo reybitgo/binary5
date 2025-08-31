@@ -158,11 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_package'])) {
             throw new Exception('Package not found');
         }
         
-        // Check if package has users (prevent deletion if in use)
-        $userCheck = $pdo->prepare("SELECT COUNT(*) FROM users WHERE package_id = ?");
+        // Check if package has been purchased (prevent deletion if in use)
+        $userCheck = $pdo->prepare("SELECT COUNT(*) FROM wallet_tx WHERE package_id = ? AND type = 'package'");
         $userCheck->execute([$pid]);
         if ($userCheck->fetchColumn() > 0) {
-            throw new Exception('Cannot delete package: It is currently assigned to users');
+            throw new Exception('Cannot delete package: It has transaction history');
         }
         
         // Delete related records first
@@ -373,6 +373,7 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
+            padding: 1rem;
         }
         
         .modal.show {
@@ -384,8 +385,8 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             background: white;
             border-radius: 12px;
             padding: 24px;
+            width: 100%;
             max-width: 500px;
-            width: 90%;
             max-height: 90vh;
             overflow-y: auto;
             transform: scale(0.9) translateY(-20px);
@@ -397,7 +398,27 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             transform: scale(1) translateY(0);
         }
 
-        @media (max-width: 640px) {
+        /* Mobile-specific improvements */
+        .bonus-table-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .bonus-input {
+            min-width: 0;
+            flex: 1;
+        }
+        
+        .level-label {
+            min-width: 2rem;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        /* Enhanced mobile responsive breakpoints */
+        @media (max-width: 768px) {
             .toast-container {
                 top: 10px;
                 right: 10px;
@@ -408,6 +429,87 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                 min-width: auto;
                 max-width: none;
             }
+            
+            .modal-content {
+                padding: 1rem;
+                margin: 1rem;
+                max-height: calc(100vh - 2rem);
+            }
+            
+            /* Reduce grid gap on mobile */
+            .packages-grid {
+                gap: 1rem;
+            }
+            
+            /* Stack bonus inputs vertically on very small screens */
+            .bonus-table-row {
+                flex-wrap: wrap;
+                gap: 0.25rem;
+            }
+            
+            .bonus-input {
+                min-width: calc(33.333% - 0.25rem);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .bonus-table-row {
+                display: grid;
+                grid-template-columns: auto 1fr 1fr 1fr;
+                gap: 0.5rem;
+                align-items: center;
+            }
+            
+            .bonus-input {
+                min-width: 0;
+            }
+            
+            /* Make package cards full width on very small screens */
+            .packages-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Prevent horizontal scroll */
+        body {
+            overflow-x: hidden;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        /* Ensure inputs don't overflow */
+        input[type="text"],
+        input[type="number"] {
+            min-width: 0;
+            width: 100%;
+        }
+        
+        /* Collapsible sections for mobile */
+        .collapsible-section {
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+        }
+        
+        .collapsible-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .collapsible-toggle {
+            transition: transform 0.3s ease;
+        }
+        
+        .collapsible-section.collapsed {
+            max-height: 0;
+        }
+        
+        .collapsible-header[aria-expanded="false"] .collapsible-toggle {
+            transform: rotate(-90deg);
         }
     </style>
 </head>
@@ -435,7 +537,7 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                                placeholder="Enter package name">
                     </div>
                     
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 Price ($)
@@ -458,13 +560,13 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                     </div>
                 </div>
                 
-                <div class="flex gap-3 mt-6">
+                <div class="flex flex-col sm:flex-row gap-3 mt-6">
                     <button type="button" onclick="closeAddPackageModal()"
-                            class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors">
+                            class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors order-2 sm:order-1">
                         Cancel
                     </button>
                     <button type="submit"
-                            class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2">
                         <span class="button-text">Add Package</span>
                         <span class="button-loading hidden">
                             <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -479,11 +581,48 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
         </div>
     </div>
     
-    <div class="container mx-auto px-4 py-8">
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content max-w-md">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            
+            <div class="text-center mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Delete Package</h3>
+                <p class="text-gray-600 text-sm sm:text-base">
+                    Are you sure you want to delete "<span id="deletePackageName" class="font-medium text-gray-900"></span>"? 
+                    This action cannot be undone.
+                </p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button type="button" onclick="closeDeleteConfirmModal()"
+                        class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors order-2 sm:order-1">
+                    Cancel
+                </button>
+                <button type="button" onclick="confirmDeletePackage()"
+                        class="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2">
+                    <span class="button-text">Delete Package</span>
+                    <span class="button-loading hidden">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Deleting...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container mx-auto px-4 py-4 sm:py-8">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <h2 class="text-3xl font-bold text-gray-800">Package Settings</h2>
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800">Package Settings</h2>
             <button onclick="openAddPackageModal()" 
-                    class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                    class="w-full sm:w-auto bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
@@ -491,25 +630,25 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="packages-grid grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
             <?php foreach ($packages as $pkg): ?>
-                <div class="bg-white shadow-lg rounded-lg p-6 relative">
+                <div class="bg-white shadow-lg rounded-lg p-4 sm:p-6 relative">
                     <!-- Delete Button -->
-                    <button onclick="deletePackage(<?= $pkg['id'] ?>)"
-                            class="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"
+                    <button onclick="showDeleteConfirm(<?= $pkg['id'] ?>, '<?= htmlspecialchars($pkg['name'], ENT_QUOTES) ?>')"
+                            class="absolute top-3 sm:top-4 right-3 sm:right-4 text-red-500 hover:text-red-700 transition-colors"
                             title="Delete Package">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
                     </button>
 
-                    <form method="post" class="space-y-6 package-form" data-package-id="<?= $pkg['id'] ?>" onsubmit="return handleFormSubmit(event, this)">
+                    <form method="post" class="space-y-4 sm:space-y-6 package-form" data-package-id="<?= $pkg['id'] ?>" onsubmit="return handleFormSubmit(event, this)">
                         <input type="hidden" name="package_id" value="<?= $pkg['id'] ?>">
                         <input type="hidden" name="save_package" value="1">
                         
                         <!-- Package Basic Info -->
-                        <div class="space-y-4">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Package Details</h3>
+                        <div class="space-y-3 sm:space-y-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 pr-8">Package Details</h3>
                             
                             <div class="space-y-2">
                                 <label class="block text-sm font-medium text-gray-600">
@@ -520,11 +659,11 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                                     </span>
                                 </label>
                                 <input type="text" name="name" required
-                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                       class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                        value="<?= htmlspecialchars($pkg['name']) ?>">
                             </div>
                             
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div class="space-y-2">
                                     <label class="block text-sm font-medium text-gray-600">
                                         Price ($)
@@ -534,7 +673,7 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                                         </span>
                                     </label>
                                     <input type="number" step="0.01" min="0" name="price" required
-                                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                           class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                            value="<?= htmlspecialchars($pkg['price']) ?>">
                                 </div>
                                 
@@ -547,137 +686,160 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
                                         </span>
                                     </label>
                                     <input type="number" step="0.01" min="0" name="pv" required
-                                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                           class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                            value="<?= htmlspecialchars($pkg['pv']) ?>">
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Base Rates -->
-                        <div class="space-y-4">
-                            <h4 class="text-lg font-medium text-gray-700">Base Rates</h4>
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-600">
-                                    Max Pairs/Day
-                                    <span class="ml-1 text-gray-400 cursor-help tooltip-container">
-                                        ℹ️
-                                        <span class="tooltip">Maximum number of pairs allowed per day</span>
-                                    </span>
-                                </label>
-                                <input type="number" name="daily_max" min="0" required
-                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                       value="<?= htmlspecialchars($pkg['daily_max']) ?>">
+                        <div class="space-y-3 sm:space-y-4">
+                            <div class="collapsible-header" onclick="toggleSection(this, 'base-rates-<?= $pkg['id'] ?>')" aria-expanded="true">
+                                <h4 class="text-base sm:text-lg font-medium text-gray-700">Base Rates</h4>
+                                <svg class="collapsible-toggle w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
                             </div>
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-600">
-                                    Pair Rate (0-1)
-                                    <span class="ml-1 text-gray-400 cursor-help tooltip-container">
-                                        ℹ️
-                                        <span class="tooltip">Rate for successful pairs (0 to 1)</span>
-                                    </span>
-                                </label>
-                                <input type="number" step="0.01" min="0" max="1" name="pair_rate" required
-                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                       value="<?= htmlspecialchars($pkg['pair_rate']) ?>">
-                            </div>
-                            <div class="space-y-2">
-                                <label class="block text-sm font-medium text-gray-600">
-                                    Referral Rate (0-1)
-                                    <span class="ml-1 text-gray-400 cursor-help tooltip-container">
-                                        ℹ️
-                                        <span class="tooltip">Rate for referrals (0 to 1)</span>
-                                    </span>
-                                </label>
-                                <input type="number" step="0.01" min="0" max="1" name="referral_rate" required
-                                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                       value="<?= htmlspecialchars($pkg['referral_rate']) ?>">
+                            <div id="base-rates-<?= $pkg['id'] ?>" class="collapsible-section space-y-3">
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-600">
+                                        Max Pairs/Day
+                                        <span class="ml-1 text-gray-400 cursor-help tooltip-container">
+                                            ℹ️
+                                            <span class="tooltip">Maximum number of pairs allowed per day</span>
+                                        </span>
+                                    </label>
+                                    <input type="number" name="daily_max" min="0" required
+                                           class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                           value="<?= htmlspecialchars($pkg['daily_max']) ?>">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-medium text-gray-600">
+                                            Pair Rate (0-1)
+                                            <span class="ml-1 text-gray-400 cursor-help tooltip-container">
+                                                ℹ️
+                                                <span class="tooltip">Rate for successful pairs (0 to 1)</span>
+                                            </span>
+                                        </label>
+                                        <input type="number" step="0.01" min="0" max="1" name="pair_rate" required
+                                               class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                               value="<?= htmlspecialchars($pkg['pair_rate']) ?>">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-sm font-medium text-gray-600">
+                                            Referral Rate (0-1)
+                                            <span class="ml-1 text-gray-400 cursor-help tooltip-container">
+                                                ℹ️
+                                                <span class="tooltip">Rate for referrals (0 to 1)</span>
+                                            </span>
+                                        </label>
+                                        <input type="number" step="0.01" min="0" max="1" name="referral_rate" required
+                                               class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                               value="<?= htmlspecialchars($pkg['referral_rate']) ?>">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Leadership Schedule -->
-                        <div class="space-y-4">
-                            <h4 class="text-lg font-medium text-gray-700">Matched Bonus Settings</h4>
-                            <div class="space-y-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-8"></span>
-                                    <span class="w-24 text-center font-medium text-gray-600">PVT</span>
-                                    <span class="w-24 text-center font-medium text-gray-600">GVT</span>
-                                    <span class="w-24 text-center font-medium text-gray-600">Rate</span>
-                                </div>
-                                <?php
-                                $lead = $pdo->prepare("SELECT * FROM package_leadership_schedule WHERE package_id = ? ORDER BY level");
-                                $lead->execute([$pkg['id']]);
-                                $leadRows = $lead->fetchAll(PDO::FETCH_ASSOC);
-                                $leadData = array_fill(1, 5, ['pvt_required' => 0, 'gvt_required' => 0, 'rate' => 0]);
-                                foreach ($leadRows as $row) {
-                                    $leadData[$row['level']] = [
-                                        'pvt_required' => $row['pvt_required'],
-                                        'gvt_required' => $row['gvt_required'],
-                                        'rate' => $row['rate']
-                                    ];
-                                }
-                                foreach (range(1, 5) as $lvl):
-                                    $row = $leadData[$lvl];
-                                ?>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-8 font-medium">L<?= $lvl ?></span>
-                                        <input type="number" min="0" name="lead_pvt_<?= $lvl ?>" required
-                                               class="w-24 px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                               value="<?= htmlspecialchars($row['pvt_required']) ?>" placeholder="PVT">
-                                        <input type="number" min="0" name="lead_gvt_<?= $lvl ?>" required
-                                               class="w-24 px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                               value="<?= htmlspecialchars($row['gvt_required']) ?>" placeholder="GVT">
-                                        <input type="number" step="0.001" min="0" name="lead_rate_<?= $lvl ?>" required
-                                               class="w-24 px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                               value="<?= htmlspecialchars($row['rate']) ?>" placeholder="Rate">
+                        <div class="space-y-3 sm:space-y-4">
+                            <div class="collapsible-header" onclick="toggleSection(this, 'leadership-<?= $pkg['id'] ?>')" aria-expanded="false">
+                                <h4 class="text-base sm:text-lg font-medium text-gray-700">Matched Bonus Settings</h4>
+                                <svg class="collapsible-toggle w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                            <div id="leadership-<?= $pkg['id'] ?>" class="collapsible-section collapsed">
+                                <div class="space-y-2">
+                                    <div class="hidden sm:flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                                        <span class="level-label">Lvl</span>
+                                        <span class="bonus-input text-center">PVT</span>
+                                        <span class="bonus-input text-center">GVT</span>
+                                        <span class="bonus-input text-center">Rate</span>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php
+                                    $lead = $pdo->prepare("SELECT * FROM package_leadership_schedule WHERE package_id = ? ORDER BY level");
+                                    $lead->execute([$pkg['id']]);
+                                    $leadRows = $lead->fetchAll(PDO::FETCH_ASSOC);
+                                    $leadData = array_fill(1, 5, ['pvt_required' => 0, 'gvt_required' => 0, 'rate' => 0]);
+                                    foreach ($leadRows as $row) {
+                                        $leadData[$row['level']] = [
+                                            'pvt_required' => $row['pvt_required'],
+                                            'gvt_required' => $row['gvt_required'],
+                                            'rate' => $row['rate']
+                                        ];
+                                    }
+                                    foreach (range(1, 5) as $lvl):
+                                        $row = $leadData[$lvl];
+                                    ?>
+                                        <div class="bonus-table-row">
+                                            <span class="level-label text-sm font-medium text-gray-700">L<?= $lvl ?></span>
+                                            <input type="number" min="0" name="lead_pvt_<?= $lvl ?>" required
+                                                   class="bonus-input px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                   value="<?= htmlspecialchars($row['pvt_required']) ?>" placeholder="PVT">
+                                            <input type="number" min="0" name="lead_gvt_<?= $lvl ?>" required
+                                                   class="bonus-input px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                   value="<?= htmlspecialchars($row['gvt_required']) ?>" placeholder="GVT">
+                                            <input type="number" step="0.001" min="0" name="lead_rate_<?= $lvl ?>" required
+                                                   class="bonus-input px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                   value="<?= htmlspecialchars($row['rate']) ?>" placeholder="Rate">
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Mentor Schedule -->
-                        <div class="space-y-4">
-                            <h4 class="text-lg font-medium text-gray-700">Mentor Bonus Settings</h4>
-                            <div class="space-y-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-8"></span>
-                                    <span class="w-24 text-center font-medium text-gray-600">PVT</span>
-                                    <span class="w-24 text-center font-medium text-gray-600">GVT</span>
-                                    <span class="w-24 text-center font-medium text-gray-600">Rate</span>
-                                </div>
-                                <?php
-                                $mentor = $pdo->prepare("SELECT * FROM package_mentor_schedule WHERE package_id = ? ORDER BY level");
-                                $mentor->execute([$pkg['id']]);
-                                $mentorRows = $mentor->fetchAll(PDO::FETCH_ASSOC);
-                                $mentorData = array_fill(1, 5, ['pvt_required' => 0, 'gvt_required' => 0, 'rate' => 0]);
-                                foreach ($mentorRows as $row) {
-                                    $mentorData[$row['level']] = [
-                                        'pvt_required' => $row['pvt_required'],
-                                        'gvt_required' => $row['gvt_required'],
-                                        'rate' => $row['rate']
-                                    ];
-                                }
-                                foreach (range(1, 5) as $lvl):
-                                    $row = $mentorData[$lvl];
-                                ?>
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-8 font-medium">L<?= $lvl ?></span>
-                                        <input type="number" min="0" name="mentor_pvt_<?= $lvl ?>" required
-                                               class="w-24 px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                               value="<?= htmlspecialchars($row['pvt_required']) ?>" placeholder="PVT">
-                                        <input type="number" min="0" name="mentor_gvt_<?= $lvl ?>" required
-                                               class="w-24 px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                               value="<?= htmlspecialchars($row['gvt_required']) ?>" placeholder="GVT">
-                                        <input type="number" step="0.001" min="0" name="mentor_rate_<?= $lvl ?>" required
-                                               class="w-24 px-2 py-1 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                               value="<?= htmlspecialchars($row['rate']) ?>" placeholder="Rate">
+                        <div class="space-y-3 sm:space-y-4">
+                            <div class="collapsible-header" onclick="toggleSection(this, 'mentor-<?= $pkg['id'] ?>')" aria-expanded="false">
+                                <h4 class="text-base sm:text-lg font-medium text-gray-700">Mentor Bonus Settings</h4>
+                                <svg class="collapsible-toggle w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                            <div id="mentor-<?= $pkg['id'] ?>" class="collapsible-section collapsed">
+                                <div class="space-y-2">
+                                    <div class="hidden sm:flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                                        <span class="level-label">Lvl</span>
+                                        <span class="bonus-input text-center">PVT</span>
+                                        <span class="bonus-input text-center">GVT</span>
+                                        <span class="bonus-input text-center">Rate</span>
                                     </div>
-                                <?php endforeach; ?>
+                                    <?php
+                                    $mentor = $pdo->prepare("SELECT * FROM package_mentor_schedule WHERE package_id = ? ORDER BY level");
+                                    $mentor->execute([$pkg['id']]);
+                                    $mentorRows = $mentor->fetchAll(PDO::FETCH_ASSOC);
+                                    $mentorData = array_fill(1, 5, ['pvt_required' => 0, 'gvt_required' => 0, 'rate' => 0]);
+                                    foreach ($mentorRows as $row) {
+                                        $mentorData[$row['level']] = [
+                                            'pvt_required' => $row['pvt_required'],
+                                            'gvt_required' => $row['gvt_required'],
+                                            'rate' => $row['rate']
+                                        ];
+                                    }
+                                    foreach (range(1, 5) as $lvl):
+                                        $row = $mentorData[$lvl];
+                                    ?>
+                                        <div class="bonus-table-row">
+                                            <span class="level-label text-sm font-medium text-gray-700">L<?= $lvl ?></span>
+                                            <input type="number" min="0" name="mentor_pvt_<?= $lvl ?>" required
+                                                   class="bonus-input px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                   value="<?= htmlspecialchars($row['pvt_required']) ?>" placeholder="PVT">
+                                            <input type="number" min="0" name="mentor_gvt_<?= $lvl ?>" required
+                                                   class="bonus-input px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                   value="<?= htmlspecialchars($row['gvt_required']) ?>" placeholder="GVT">
+                                            <input type="number" step="0.001" min="0" name="mentor_rate_<?= $lvl ?>" required
+                                                   class="bonus-input px-2 py-1 text-sm border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                   value="<?= htmlspecialchars($row['rate']) ?>" placeholder="Rate">
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
 
                         <button type="submit"
-                                class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="w-full bg-blue-600 text-white py-2 px-4 text-sm sm:text-base rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="button-text">Save Settings</span>
                             <span class="button-loading hidden">
                                 <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -791,6 +953,20 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
         // Initialize toast system
         const toastSystem = new ToastNotification();
 
+        // Collapsible sections functionality
+        function toggleSection(header, sectionId) {
+            const section = document.getElementById(sectionId);
+            const isExpanded = header.getAttribute('aria-expanded') === 'true';
+            
+            header.setAttribute('aria-expanded', !isExpanded);
+            
+            if (isExpanded) {
+                section.classList.add('collapsed');
+            } else {
+                section.classList.remove('collapsed');
+            }
+        }
+
         // Modal Functions
         function openAddPackageModal() {
             const modal = document.getElementById('addPackageModal');
@@ -805,17 +981,92 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             document.body.style.overflow = 'auto';
         }
         
-        // Close modal when clicking outside
+        // Delete confirmation modal functions
+        let packageToDelete = null;
+        
+        function showDeleteConfirm(packageId, packageName) {
+            packageToDelete = packageId;
+            document.getElementById('deletePackageName').textContent = packageName;
+            const modal = document.getElementById('deleteConfirmModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeDeleteConfirmModal() {
+            const modal = document.getElementById('deleteConfirmModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+            packageToDelete = null;
+        }
+        
+        function confirmDeletePackage() {
+            if (!packageToDelete) return;
+            
+            const submitButton = document.querySelector('#deleteConfirmModal button[onclick="confirmDeletePackage()"]');
+            setButtonState(submitButton, true);
+
+            const formData = new FormData();
+            formData.append('delete_package', '1');
+            formData.append('package_id', packageToDelete);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    toastSystem.success(data.message);
+                    closeDeleteConfirmModal();
+                    
+                    // Reload page if requested
+                    if (data.reload) {
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    }
+                } else {
+                    toastSystem.error(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error details:', error);
+                toastSystem.error(`Failed to delete package: ${error.message}`);
+            })
+            .finally(() => {
+                setButtonState(submitButton, false);
+            });
+        }
+        
+        // Close modals when clicking outside
         document.getElementById('addPackageModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeAddPackageModal();
             }
         });
         
-        // Close modal with Escape key
+        document.getElementById('deleteConfirmModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteConfirmModal();
+            }
+        });
+        
+        // Close modals with Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeAddPackageModal();
+                closeDeleteConfirmModal();
             }
         });
 
@@ -984,51 +1235,6 @@ $packages = $pdo->query("SELECT * FROM packages ORDER BY id")->fetchAll(PDO::FET
             });
 
             return false;
-        }
-
-        function deletePackage(packageId) {
-            if (!confirm('Are you sure you want to delete this package? This action cannot be undone.')) {
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('delete_package', '1');
-            formData.append('package_id', packageId);
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error('Server returned non-JSON response');
-                }
-                
-                return response.json();
-            })
-            .then(data => {
-                if (data.status === 'success') {
-                    toastSystem.success(data.message);
-                    
-                    // Reload page if requested
-                    if (data.reload) {
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1500);
-                    }
-                } else {
-                    toastSystem.error(data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error details:', error);
-                toastSystem.error(`Failed to delete package: ${error.message}`);
-            });
         }
 
         // Tooltip handling

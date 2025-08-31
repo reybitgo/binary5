@@ -1,11 +1,15 @@
 <?php
-// binary_calc.php - Fixed binary commission calculation
+// binary_calc.php - FIXED package lookup logic
 require_once 'config.php';
 
-function calc_binary(int $userId, int $pv, PDO $pdo): void
+function calc_binary(int $packageBuyerId, int $pv, PDO $pdo): void
 {
-    /* 1. Propagate leg counts up the tree */
-    $cursor = $userId;
+    if ($pv <= 0) return;
+
+    /* -------------------------------------------------
+     * 1. Propagate leg counts up the tree
+     * -------------------------------------------------*/
+    $cursor = $packageBuyerId;
     while (true) {
         $stmt = $pdo->prepare(
             'SELECT id, upline_id, position FROM users WHERE id = ?'
@@ -24,9 +28,11 @@ function calc_binary(int $userId, int $pv, PDO $pdo): void
         $cursor = $node['upline_id'];
     }
 
-    /* 2. Pay commissions upward */
+    /* -------------------------------------------------
+     * 2. Pay commissions upward (use package buyer's package)
+     * -------------------------------------------------*/
     $ancestors = [];
-    $cursor = $userId;
+    $cursor = $packageBuyerId;
     while (true) {
         $stmt = $pdo->prepare(
             'SELECT id, upline_id, left_count, right_count, pairs_today FROM users WHERE id = ?'
@@ -42,61 +48,74 @@ function calc_binary(int $userId, int $pv, PDO $pdo): void
         $cursor = $row['upline_id'];
     }
 
-    foreach ($ancestors as $anc) {
-        // Get package-specific rates
-        $pkgStmt = $pdo->prepare("SELECT daily_max, pair_rate FROM packages WHERE id = (
-            SELECT package_id FROM wallet_tx
-            WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
-        )");
-        $pkgStmt->execute([$anc['id']]);
-        $pkg = $pkgStmt->fetch(PDO::FETCH_ASSOC);
+    /* -------------------------------------------------
+     * 3. Get package details from the actual package buyer
+     * -------------------------------------------------*/
+    $pkgStmt = $pdo->prepare("
+        SELECT p.daily_max, p.pair_rate, p.id as package_id
+        FROM packages p
+        JOIN wallet_tx wt ON wt.package_id = p.id
+        WHERE wt.user_id = ? AND wt.type='package'
+        ORDER BY wt.id DESC LIMIT 1
+    ");
+    $pkgStmt->execute([$packageBuyerId]);
+    $buyerPackage = $pkgStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$buyerPackage) {
+        // No package found for buyer - skip all calculations
+        return;
+    }
+
+    /* -------------------------------------------------
+     * 4. Apply package rules to all ancestors
+     * -------------------------------------------------*/
+    foreach ($ancestors as $ancestor) {
+        $ancestorId = $ancestor['id'];
         
-        if (!$pkg) {
-            // Skip if no package found
-            continue;
-        }
-
-        $freshData = $pdo->prepare(
+        // Get fresh counts for this ancestor
+        $stmt = $pdo->prepare(
             'SELECT left_count, right_count, pairs_today FROM users WHERE id = ?'
-        )->execute([$anc['id']]);
-        $freshData = $pdo->prepare(
-            'SELECT left_count, right_count, pairs_today FROM users WHERE id = ?'
-        )->fetch(PDO::FETCH_ASSOC);
-
+        );
+        $stmt->execute([$ancestorId]);
+        $freshData = $stmt->fetch(PDO::FETCH_ASSOC);
+        
         $left = (int) $freshData['left_count'];
         $right = (int) $freshData['right_count'];
         $alreadyPaid = (int) $freshData['pairs_today'];
 
         $pairsPossible = min($left, $right);
-        $remainingCap = max(0, $pkg['daily_max'] - $alreadyPaid);
+        $remainingCap = max(0, $buyerPackage['daily_max'] - $alreadyPaid);
         $pairsToPay = min($pairsPossible, $remainingCap);
 
         if ($pairsToPay > 0) {
             $dailyPairValue = $pairsToPay;
-            $bonus = $dailyPairValue * $pkg['pair_rate'];
+            $bonus = $dailyPairValue * $buyerPackage['pair_rate'];
 
-            // Credit wallet
+            // Credit ancestor's wallet
             $pdo->prepare(
                 'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
-            )->execute([$bonus, $anc['id']]);
+            )->execute([$bonus, $ancestorId]);
 
             // Record commission
             $pdo->prepare(
                 'INSERT INTO wallet_tx (user_id, type, amount, package_id)
                  VALUES (?, "pair_bonus", ?, ?)'
-            )->execute([$anc['id'], $bonus, $pkg['id']]);
+            )->execute([$ancestorId, $bonus, $buyerPackage['package_id']]);
 
             // Update daily counter
             $pdo->prepare(
                 'UPDATE users SET pairs_today = pairs_today + ? WHERE id = ?'
-            )->execute([$pairsToPay, $anc['id']]);
+            )->execute([$pairsToPay, $ancestorId]);
 
             // Call leadership calculations
-            require_once 'leadership_calc.php';
-            calc_leadership($anc['id'], $bonus, $pdo);
-
-            require_once 'leadership_reverse_calc.php';
-            calc_leadership_reverse($anc['id'], $bonus, $pdo);
+            if (file_exists('leadership_calc.php')) {
+                require_once 'leadership_calc.php';
+                calc_leadership($ancestorId, $bonus, $pdo);
+            }
+            if (file_exists('leadership_reverse_calc.php')) {
+                require_once 'leadership_reverse_calc.php';
+                calc_leadership_reverse($ancestorId, $bonus, $pdo);
+            }
         }
 
         // Flush excess pairs
@@ -105,16 +124,16 @@ function calc_binary(int $userId, int $pv, PDO $pdo): void
             $pdo->prepare(
                 'INSERT INTO flushes (user_id, amount, flushed_on)
                  VALUES (?, ?, CURDATE())'
-            )->execute([$anc['id'], $excessPairs]);
+            )->execute([$ancestorId, $excessPairs]);
         }
 
-        // Reset counts after processing
+        // Reset counts
         $flushLeft = $left - $pairsPossible;
         $flushRight = $right - $pairsPossible;
 
         $pdo->prepare(
             'UPDATE users SET left_count = ?, right_count = ? WHERE id = ?'
-        )->execute([$flushLeft, $flushRight, $anc['id']]);
+        )->execute([$flushLeft, $flushRight, $ancestorId]);
     }
 }
 ?>

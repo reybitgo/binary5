@@ -26,20 +26,27 @@ if (!in_array($page, $allowed_pages)) {
     $page = 'overview';
 }
 
-// User info
+// User info (with wallet balance)
 $user = $pdo->prepare("SELECT u.*, w.balance
                        FROM users u
-                       JOIN wallets w ON w.user_id = u.id
+                       LEFT JOIN wallets w ON w.user_id = u.id
                        WHERE u.id = ?");
 $user->execute([$uid]);
 $user = $user->fetch();
+
+// Ensure wallet exists for user
+if ($user['balance'] === null) {
+    $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
+        ->execute([$uid]);
+    $user['balance'] = 0.00;
+}
 
 // Handle actions (moved from individual page files)
 if ($_POST['action'] ?? '') {
     switch ($_POST['action']) {
         case 'request_topup':
             $amt = max(0, (float) $_POST['usdt_amount']);
-            if ($amt <= 0) redirect('dashboard.php', 'Invalid amount');
+            if ($amt <= 0) redirect('dashboard.php?page=wallet', 'Invalid amount');
             $hash = trim($_POST['tx_hash']) ?: null;
             $b2p = $amt * USDT_B2P_RATE;
             $pdo->prepare(
@@ -54,7 +61,8 @@ if ($_POST['action'] ?? '') {
             if ($amt <= 0) redirect('dashboard.php?page=wallet','Invalid amount');
             if ($amt > $user['balance']) redirect('dashboard.php?page=wallet','Insufficient balance');
             $addr = trim($_POST['wallet_address']);
-            $b2p  = $amt * USDT_B2P_RATE;
+            if (empty($addr)) redirect('dashboard.php?page=wallet','Wallet address is required');
+            $b2p = $amt * USDT_B2P_RATE;
             $pdo->prepare(
                 "INSERT INTO ewallet_requests (user_id,type,usdt_amount,b2p_amount,wallet_address,status)
                  VALUES (?,'withdraw',?,?,?,'pending')"
@@ -63,21 +71,46 @@ if ($_POST['action'] ?? '') {
             break;
 
         case 'transfer':
-            $toUser = $_POST['to_username'];
+            $toUser = trim($_POST['to_username']);
             $amt = (float) $_POST['amount'];
+            
+            if (empty($toUser)) redirect('dashboard.php?page=wallet', 'Recipient username is required');
+            if ($amt <= 0) redirect('dashboard.php?page=wallet', 'Invalid amount');
             if ($amt > $user['balance']) redirect('dashboard.php?page=wallet', 'Insufficient balance');
+            
             $to = $pdo->prepare("SELECT id FROM users WHERE username = ?");
             $to->execute([$toUser]);
             $to = $to->fetch();
             if (!$to) redirect('dashboard.php?page=wallet', 'Recipient not found');
+            
             $tid = $to['id'];
-            $pdo->beginTransaction();
-            $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")->execute([$amt,$uid]);
-            $pdo->prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?")->execute([$amt,$tid]);
-            $pdo->prepare("INSERT INTO wallet_tx (user_id,type,amount) VALUES (?,'transfer_out',?)")->execute([$uid,-$amt]);
-            $pdo->prepare("INSERT INTO wallet_tx (user_id,type,amount) VALUES (?,'transfer_in',?)")->execute([$tid,$amt]);
-            $pdo->commit();
-            redirect('dashboard.php?page=wallet', 'Transfer completed');
+            if ($tid == $uid) redirect('dashboard.php?page=wallet', 'Cannot transfer to yourself');
+            
+            try {
+                $pdo->beginTransaction();
+                
+                // Ensure recipient has wallet
+                $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
+                    ->execute([$tid]);
+                
+                // Update balances
+                $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")
+                    ->execute([$amt, $uid]);
+                $pdo->prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?")
+                    ->execute([$amt, $tid]);
+                
+                // Record transactions
+                $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'transfer_out', ?)")
+                    ->execute([$uid, -$amt]);
+                $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'transfer_in', ?)")
+                    ->execute([$tid, $amt]);
+                
+                $pdo->commit();
+                redirect('dashboard.php?page=wallet', 'Transfer completed');
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                redirect('dashboard.php?page=wallet', 'Transfer failed: ' . $e->getMessage());
+            }
             break;
 
         case 'buy_package':
@@ -85,19 +118,42 @@ if ($_POST['action'] ?? '') {
             $pkg = $pdo->prepare("SELECT * FROM packages WHERE id = ?");
             $pkg->execute([$pid]);
             $pkg = $pkg->fetch();
+            
             if (!$pkg) redirect('dashboard.php?page=store', 'Package not found');
             if ($user['balance'] < $pkg['price']) redirect('dashboard.php?page=store', 'Insufficient balance');
-            $pdo->beginTransaction();
-            $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")
-                ->execute([$pkg['price'],$uid]);
-            $pdo->prepare("INSERT INTO wallet_tx (user_id,type,amount) VALUES (?,'package',?)")
-                ->execute([$uid,-$pkg['price']]);
-            include 'binary_calc.php';
-            calc_binary($uid, $pkg['pv'], $pdo);
-            include 'referral_calc.php';
-            calc_referral($uid, $pkg['price'], $pdo);
-            $pdo->commit();
-            redirect('dashboard.php?page=store', 'Package purchased & commissions calculated');
+            
+            try {
+                $pdo->beginTransaction();
+                
+                // Deduct package cost from wallet
+                $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")
+                    ->execute([$pkg['price'], $uid]);
+                
+                // Record package purchase transaction with package_id
+                $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, ?, 'package', ?)")
+                    ->execute([$uid, $pid, -$pkg['price']]);
+                
+                // Calculate bonuses
+                if (file_exists('binary_calc.php')) {
+                    include 'binary_calc.php';
+                    if (function_exists('calc_binary')) {
+                        calc_binary($uid, $pkg['pv'], $pdo);
+                    }
+                }
+                
+                if (file_exists('referral_calc.php')) {
+                    include 'referral_calc.php';
+                    if (function_exists('calc_referral')) {
+                        calc_referral($uid, $pkg['price'], $pdo);
+                    }
+                }
+                
+                $pdo->commit();
+                redirect('dashboard.php?page=store', 'Package purchased & commissions calculated');
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                redirect('dashboard.php?page=store', 'Purchase failed: ' . $e->getMessage());
+            }
             break;
     }
 
@@ -109,46 +165,61 @@ if ($_POST['action'] ?? '') {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) {
-            redirect('dashboard.php?page=wallet', 'No pending request');
+            redirect('dashboard.php?page=wallet', 'No pending request found');
         }
 
-        $pdo->beginTransaction();
+        try {
+            $pdo->beginTransaction();
 
-        // Ensure wallet row exists for the target user
-        $pdo->prepare('INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)')
-            ->execute([$row['user_id']]);
+            // Ensure wallet row exists for the target user
+            $pdo->prepare('INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)')
+                ->execute([$row['user_id']]);
 
-        if ($_POST['action'] === 'approve') {
-            /* ----- Withdrawal ----- */
-            if ($row['type'] === 'withdraw') {
-                // Deduct from wallet
-                $pdo->prepare('UPDATE wallets SET balance = balance - ? WHERE user_id = ?')
-                    ->execute([$row['usdt_amount'], $row['user_id']]);
-                // Ledger entry
-                $pdo->prepare('INSERT INTO wallet_tx (user_id, type, amount) VALUES (?,"withdraw",?)')
-                    ->execute([$row['user_id'], -$row['usdt_amount']]);
+            if ($_POST['action'] === 'approve') {
+                /* ----- Withdrawal ----- */
+                if ($row['type'] === 'withdraw') {
+                    // Deduct from wallet
+                    $pdo->prepare('UPDATE wallets SET balance = balance - ? WHERE user_id = ?')
+                        ->execute([$row['usdt_amount'], $row['user_id']]);
+                    // Ledger entry (with NULL package_id)
+                    $pdo->prepare('INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, "withdraw", ?)')
+                        ->execute([$row['user_id'], -$row['usdt_amount']]);
+                }
+                /* ----- Top-up ----- */
+                else { // type = topup
+                    // Credit wallet
+                    $pdo->prepare('UPDATE wallets SET balance = balance + ? WHERE user_id = ?')
+                        ->execute([$row['usdt_amount'], $row['user_id']]);
+                    // Ledger entry (with NULL package_id)
+                    $pdo->prepare('INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, "topup", ?)')
+                        ->execute([$row['user_id'], $row['usdt_amount']]);
+                }
+
+                $pdo->prepare('UPDATE ewallet_requests SET status="approved", updated_at=NOW() WHERE id = ?')
+                    ->execute([$id]);
+
+            } elseif ($_POST['action'] === 'reject') {
+                // If it's a withdrawal, we need to return the held funds
+                if ($row['type'] === 'withdraw') {
+                    // Credit the wallet back
+                    $pdo->prepare('UPDATE wallets SET balance = balance + ? WHERE user_id = ?')
+                        ->execute([$row['usdt_amount'], $row['user_id']]);
+                    // Record the reversal (with NULL package_id)
+                    $pdo->prepare('INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, "withdraw_reject", ?)')
+                        ->execute([$row['user_id'], $row['usdt_amount']]);
+                }
+                
+                // Mark as rejected
+                $pdo->prepare('UPDATE ewallet_requests SET status="rejected", updated_at=NOW() WHERE id = ?')
+                    ->execute([$id]);
             }
-            /* ----- Top-up ----- */
-            else { // type = topup
-                // Credit wallet
-                $pdo->prepare('UPDATE wallets SET balance = balance + ? WHERE user_id = ?')
-                    ->execute([$row['usdt_amount'], $row['user_id']]);
-                // Ledger entry
-                $pdo->prepare('INSERT INTO wallet_tx (user_id, type, amount) VALUES (?,"topup",?)')
-                    ->execute([$row['user_id'], $row['usdt_amount']]);
-            }
 
-            $pdo->prepare('UPDATE ewallet_requests SET status="approved", updated_at=NOW() WHERE id = ?')
-                ->execute([$id]);
-
-        } elseif ($_POST['action'] === 'reject') {
-            // No money moved; just mark rejected
-            $pdo->prepare('UPDATE ewallet_requests SET status="rejected", updated_at=NOW() WHERE id = ?')
-                ->execute([$id]);
+            $pdo->commit();
+            redirect('dashboard.php?page=wallet', 'Request updated successfully');
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            redirect('dashboard.php?page=wallet', 'Failed to update request: ' . $e->getMessage());
         }
-
-        $pdo->commit();
-        redirect('dashboard.php?page=wallet', 'Request updated');
     }
 }
 
@@ -156,7 +227,7 @@ function flash() {
     if (isset($_SESSION['flash'])) {
         $msg = $_SESSION['flash'];
         unset($_SESSION['flash']);
-        return "<div class='bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4' role='alert'>$msg</div>";
+        return "<div class='bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4' role='alert'>" . htmlspecialchars($msg) . "</div>";
     }
     return '';
 }
@@ -210,8 +281,8 @@ function flash() {
                         <h1 class="text-xl font-semibold text-gray-800 ml-4">Dashboard - <?=htmlspecialchars($user['username'])?></h1>
                     </div>
                     <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-600">Balance: $<?= number_format($user['balance'], 2) ?></span>
                         <a href="dashboard.php?page=profile" class="text-gray-600 hover:text-blue-500">Profile</a>
-                        <!-- <a href="logout.php" class="text-gray-600 hover:text-blue-500">Logout</a> -->
                     </div>
                 </div>
             </header>
@@ -232,7 +303,7 @@ function flash() {
                     if (file_exists($page_file)) {
                         require $page_file;
                     } else {
-                        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>Page not found.</div>";
+                        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>Page not found: " . htmlspecialchars($page_file) . "</div>";
                     }
                     ?>
                 </div>
@@ -261,9 +332,13 @@ function flash() {
     window.addEventListener('load', () => {
         const currentPage = '<?= $page ?>';
         if (currentPage === 'binary') {
-            initBinaryChart();
+            if (typeof initBinaryChart === 'function') {
+                initBinaryChart();
+            }
         } else if (currentPage === 'leadership') {
-            initSponsorChart();
+            if (typeof initSponsorChart === 'function') {
+                initSponsorChart();
+            }
         }
     });
 

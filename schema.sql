@@ -264,3 +264,12 @@ ALTER TABLE wallet_tx
 ADD CONSTRAINT fk_wallet_tx_package 
 FOREIGN KEY (package_id) REFERENCES packages(id) 
 ON DELETE SET NULL;
+
+-- Update existing package transactions
+UPDATE wallet_tx wt
+JOIN packages p ON ABS(wt.amount) = p.price
+SET wt.package_id = p.id
+WHERE wt.type = 'package';
+
+-- Add index for performance
+ALTER TABLE wallet_tx ADD INDEX idx_package_id (package_id);
