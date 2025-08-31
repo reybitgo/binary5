@@ -2,22 +2,13 @@
 require_once 'config.php';
 require_once 'functions.php';
 
+/**
+ * Leadership bonus uses ANCESTOR'S highest price package
+ * When a downline earns binary bonus, ancestors get leadership bonus
+ */
 function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
 {
     if ($pairBonus <= 0) return;
-
-    // Get package-based schedule
-    $stmt = $pdo->prepare("
-        SELECT level, pvt_required, gvt_required, rate
-        FROM package_leadership_schedule
-        WHERE package_id = (
-            SELECT package_id FROM wallet_tx
-            WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
-        )
-    ");
-    $stmt->execute([$earnerId]);
-    $schedule = $stmt->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
-    if (!$schedule) return;
 
     $currentId = $earnerId;
 
@@ -30,21 +21,38 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
 
         $ancestorId = (int)$row['sponsor_id'];
 
-        if (!isset($schedule[$level])) {
+        // Get ANCESTOR'S highest price package for leadership settings
+        $stmt = $pdo->prepare("
+            SELECT pls.level, pls.pvt_required, pls.gvt_required, pls.rate
+            FROM package_leadership_schedule pls
+            JOIN (
+                SELECT p.id, p.price
+                FROM packages p
+                JOIN wallet_tx wt ON wt.package_id = p.id
+                WHERE wt.user_id = ? AND wt.type='package'
+                ORDER BY p.price DESC, wt.id DESC
+                LIMIT 1
+            ) highest_package ON highest_package.id = pls.package_id
+            WHERE pls.level = ?
+        ");
+        $stmt->execute([$ancestorId, $level]);
+        $schedule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$schedule) {
             $currentId = $ancestorId;
             continue;
         }
 
-        $needPVT = $schedule[$level]['pvt_required'];
-        $needGVT = $schedule[$level]['gvt_required'];
-        $rate = $schedule[$level]['rate'];
+        $needPVT = $schedule['pvt_required'];
+        $needGVT = $schedule['gvt_required'];
+        $rate = $schedule['rate'];
 
         $pvt = getPersonalVolume($ancestorId, $pdo);
         $gvt = getGroupVolume($ancestorId, $pdo, 0);
 
         $grossBonus = $pairBonus * $rate;
 
-        // Check for previously flushed amount
+        // Check for previously flushed amount for this ancestor
         $stmt = $pdo->prepare(
             'SELECT COALESCE(SUM(amount),0)
              FROM leadership_flush_log
@@ -60,7 +68,7 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
         }
 
         if ($pvt >= $needPVT && $gvt >= $needGVT) {
-            // Pay the bonus
+            // Pay to ANCESTOR
             $pdo->prepare(
                 'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
             )->execute([$netBonus, $ancestorId]);
@@ -70,13 +78,13 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
                  VALUES (?, "leadership_bonus", ?)'
             )->execute([$ancestorId, $netBonus]);
         } else {
-            // Flush the amount
+            // Flush from ANCESTOR's potential earnings
             $pdo->prepare(
                 'INSERT INTO flushes (user_id, amount, flushed_on, reason)
                  VALUES (?, ?, CURDATE(), ?)'
             )->execute([$ancestorId, $netBonus, 'leadership_requirements_not_met']);
 
-            // Log to prevent re-payment
+            // Log flush for ANCESTOR
             $pdo->prepare(
                 'INSERT INTO leadership_flush_log
                    (ancestor_id, downline_id, level, amount, flushed_on)

@@ -1,77 +1,84 @@
 <?php
-// leadership_reverse_calc.php - Fixed mentor bonus calculation
 require_once 'config.php';
 require_once 'functions.php';
 
+/**
+ * Mentor bonus uses DESCENDANT'S highest price package
+ * When ancestor earns binary bonus, descendants get mentor bonus
+ */
 function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): void
 {
     if ($pairBonus <= 0) return;
 
-    $stmt = $pdo->prepare("
-        SELECT level, pvt_required, gvt_required, rate
-        FROM package_mentor_schedule
-        WHERE package_id = (
-            SELECT package_id FROM wallet_tx
-            WHERE user_id = ? AND type='package' ORDER BY id DESC LIMIT 1
-        )
-    ");
-    $stmt->execute([$ancestorId]);
-    $schedule = $stmt->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
-    if (!$schedule) return;
-
-    // Build descendants 1-5 levels deep
+    /* Build descendants 1-5 levels deep */
     $descendants = [];
     $current = [$ancestorId];
     for ($level = 1; $level <= 5; $level++) {
         if (!$current) break;
 
         $placeholders = implode(',', array_fill(0, count($current), '?'));
-        $sql = "
-            SELECT id, username
-            FROM users
-            WHERE sponsor_id IN ($placeholders)";
+        $sql = "SELECT id FROM users WHERE sponsor_id IN ($placeholders)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($current);
 
         $next = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $row['lvl'] = $level;
-            $descendants[] = $row;
             $next[] = (int)$row['id'];
+            $descendants[] = [
+                'id' => (int)$row['id'],
+                'lvl' => $level
+            ];
         }
         $current = $next;
     }
 
-    // Process each descendant
+    /* Process each descendant */
     foreach ($descendants as $desc) {
-        $descId = (int)$desc['id'];
-        $level = (int)$desc['lvl'];
+        $descId = $desc['id'];
+        $level = $desc['lvl'];
 
-        if (!isset($schedule[$level])) continue;
+        // Get DESCENDANT'S highest price package
+        $stmt = $pdo->prepare("
+            SELECT pms.level, pms.pvt_required, pms.gvt_required, pms.rate
+            FROM package_mentor_schedule pms
+            JOIN (
+                SELECT p.id, p.price
+                FROM packages p
+                JOIN wallet_tx wt ON wt.package_id = p.id
+                WHERE wt.user_id = ? AND wt.type='package'
+                ORDER BY p.price DESC, wt.id DESC
+                LIMIT 1
+            ) highest_package ON highest_package.id = pms.package_id
+            WHERE pms.level = ?
+        ");
+        $stmt->execute([$descId, $level]);
+        $schedule = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        $needPVT = $schedule[$level]['pvt_required'];
-        $needGVT = $schedule[$level]['gvt_required'];
-        $rate = $schedule[$level]['rate'];
+        if (!$schedule) continue;
+
+        $needPVT = $schedule['pvt_required'];
+        $needGVT = $schedule['gvt_required'];
+        $rate = $schedule['rate'];
 
         $pvt = getPersonalVolume($descId, $pdo);
         $gvt = getGroupVolume($descId, $pdo, 0);
 
         $grossBonus = $pairBonus * $rate;
 
-        // Check for previously flushed mentor amount
+        // Check for previously flushed amount for THIS DESCENDANT
         $stmt = $pdo->prepare(
             'SELECT COALESCE(SUM(amount),0)
              FROM mentor_flush_log
-             WHERE ancestor_id = ? AND descendant_id = ? AND level = ?'
+             WHERE descendant_id = ? AND ancestor_id = ? AND level = ?'
         );
-        $stmt->execute([$ancestorId, $descId, $level]);
+        $stmt->execute([$descId, $ancestorId, $level]);
         $flushed = (float)$stmt->fetchColumn();
 
         $netBonus = max(0, $grossBonus - $flushed);
         if ($netBonus <= 0) continue;
 
         if ($pvt >= $needPVT && $gvt >= $needGVT) {
-            // Pay mentor bonus
+            // CREDIT DESCENDANT
             $pdo->prepare(
                 'UPDATE wallets SET balance = balance + ? WHERE user_id = ?'
             )->execute([$netBonus, $descId]);
@@ -81,13 +88,13 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
                  VALUES (?, "leadership_reverse_bonus", ?)'
             )->execute([$descId, $netBonus]);
         } else {
-            // Flush remaining amount
+            // FLUSH from DESCENDANT'S potential earnings
             $pdo->prepare(
                 'INSERT INTO flushes (user_id, amount, flushed_on, reason)
                  VALUES (?, ?, CURDATE(), ?)'
             )->execute([$descId, $netBonus, 'mentor_requirements_not_met']);
 
-            // Log to prevent re-payment
+            // Log flush for DESCENDANT
             $pdo->prepare(
                 'INSERT INTO mentor_flush_log
                    (ancestor_id, descendant_id, level, amount, flushed_on)
