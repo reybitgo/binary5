@@ -207,7 +207,8 @@ $csrfToken = generateCSRFToken();
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         body {
-            background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%);
+            /* background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%); */
+            background: url('images/login-bg.jpg') no-repeat center center / cover;
             min-height: 100vh;
             display: flex;
             align-items: center;

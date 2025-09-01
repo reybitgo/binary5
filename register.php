@@ -199,6 +199,15 @@ function old($field, $default = '') {
     <title>Register - Binary MLM System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        body {
+            /* background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%); */
+            background: url('images/register-bg.jpg') no-repeat center center / cover;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
         .password-strength {
             font-size: 0.875rem;
             margin-top: 0.25rem;
