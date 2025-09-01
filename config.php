@@ -18,7 +18,7 @@ define('B2P_CONTRACT', '0xf8ab9ff465c612d5be6a56716adf95c52f8bc72d');
 define('USDT_B2P_RATE', 1);
 
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'binary5_db_test');
+define('DB_NAME', 'binary5_db');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 
