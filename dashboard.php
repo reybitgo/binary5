@@ -12,6 +12,11 @@ $stmt->execute([$uid]);
 $user = $stmt->fetch();
 $role = $user['role'];
 
+// Check if user is inactive and redirect them to store or show message
+if ($user['status'] === 'inactive' && !in_array($_GET['page'] ?? 'overview', ['overview', 'store', 'wallet', 'profile'])) {
+    redirect('dashboard.php?page=store', 'Your account is inactive. Please purchase a package to activate your account.');
+}
+
 // Get current page from URL parameter, default to 'overview'
 $page = $_GET['page'] ?? 'overview';
 $allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'profile'];
@@ -125,6 +130,9 @@ if ($_POST['action'] ?? '') {
             try {
                 $pdo->beginTransaction();
                 
+                // Check if user is inactive and activate them
+                $wasInactive = ($user['status'] === 'inactive');
+                
                 // Deduct package cost from wallet
                 $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")
                     ->execute([$pkg['price'], $uid]);
@@ -132,6 +140,12 @@ if ($_POST['action'] ?? '') {
                 // Record package purchase transaction with package_id
                 $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, ?, 'package', ?)")
                     ->execute([$uid, $pid, -$pkg['price']]);
+                
+                // Activate user if they were inactive
+                if ($wasInactive) {
+                    $pdo->prepare("UPDATE users SET status = 'active' WHERE id = ?")
+                        ->execute([$uid]);
+                }
                 
                 // Calculate bonuses
                 if (file_exists('binary_calc.php')) {
@@ -149,7 +163,13 @@ if ($_POST['action'] ?? '') {
                 }
                 
                 $pdo->commit();
-                redirect('dashboard.php?page=store', 'Package purchased & commissions calculated');
+                
+                $message = 'Package purchased & commissions calculated';
+                if ($wasInactive) {
+                    $message .= '. Your account has been activated!';
+                }
+                
+                redirect('dashboard.php?page=store', $message);
             } catch (Exception $e) {
                 $pdo->rollBack();
                 redirect('dashboard.php?page=store', 'Purchase failed: ' . $e->getMessage());
@@ -278,7 +298,12 @@ function flash() {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                             </svg>
                         </button>
-                        <h1 class="text-xl font-semibold text-gray-800 ml-4">Dashboard - <?=htmlspecialchars($user['username'])?></h1>
+                        <h1 class="text-xl font-semibold text-gray-800 ml-4">
+                            Dashboard - <?=htmlspecialchars($user['username'])?>
+                            <?php if ($user['status'] === 'inactive'): ?>
+                                <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Inactive</span>
+                            <?php endif; ?>
+                        </h1>
                     </div>
                     <div class="flex items-center space-x-4">
                         <span class="text-sm text-gray-600">Balance: $<?= number_format($user['balance'], 2) ?></span>
@@ -291,6 +316,23 @@ function flash() {
             <main class="flex-1 overflow-y-auto bg-gray-100 p-4 sm:p-6 lg:p-8">
                 <div class="max-w-7xl mx-auto">
                     <?=flash()?>
+                    
+                    <!-- Show inactive account notice -->
+                    <?php if ($user['status'] === 'inactive'): ?>
+                        <div class="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4" role="alert">
+                            <div class="flex">
+                                <div class="py-1">
+                                    <svg class="fill-current h-6 w-6 text-orange-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                        <path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 11.32 11.32zM9 11V9h2v6H9v-4zm0-6h2v2H9V5z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="font-bold">Account Inactive</p>
+                                    <p class="text-sm">Your account is currently inactive. To activate your account and access all features, please <a href="dashboard.php?page=store" class="underline font-semibold">purchase a package</a>.</p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     
                     <?php 
                     // Include the appropriate page content

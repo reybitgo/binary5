@@ -1,10 +1,34 @@
 <?php
-// register.php - User registration page with enhanced validation
+// register.php - User registration page with enhanced validation and leader key support
 require 'config.php';
 
 // Initialize variables
 $errors = [];
 $old_values = [];
+$isLeaderRegistration = false;
+$leaderKey = null;
+
+// Check for leader key in URL
+if (isset($_GET['leaderkey'])) {
+    $leaderKey = trim($_GET['leaderkey']);
+    if (!empty($leaderKey)) {
+        // Verify leader key exists and hasn't been used
+        $keyFile = 'logs/leader_keys.log';
+        if (file_exists($keyFile)) {
+            $keys = file($keyFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($keys as $line) {
+                $parts = explode('|', $line);
+                if (count($parts) >= 3 && $parts[1] === $leaderKey && $parts[2] === 'unused') {
+                    $isLeaderRegistration = true;
+                    break;
+                }
+            }
+        }
+        if (!$isLeaderRegistration) {
+            redirect('register.php', 'Invalid or already used leader key.');
+        }
+    }
+}
 
 if ($_POST) {
     // Sanitize and validate inputs
@@ -113,20 +137,46 @@ if ($_POST) {
     // If no errors, proceed with registration
     if (empty($errors) && $sponsorId !== null && $uplineId !== null) {
         try {
+            // Determine user status based on leader registration
+            $userStatus = $isLeaderRegistration ? 'active' : 'inactive';
+            
             // Create user with secure password hash
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $pdo->prepare("
-                INSERT INTO users (username, password, sponsor_id, upline_id, position) 
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO users (username, password, sponsor_id, upline_id, position, status) 
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
-            $stmt->execute([$username, $hash, $sponsorId, $uplineId, $position]);
+            $stmt->execute([$username, $hash, $sponsorId, $uplineId, $position, $userStatus]);
             $uid = $pdo->lastInsertId();
 
             // Create wallet for the new user
             $stmt = $pdo->prepare("INSERT INTO wallets (user_id, balance) VALUES (?, 0.00)");
             $stmt->execute([$uid]);
 
-            redirect('login.php', 'Registration successful! Please log in with your credentials.');
+            // If leader registration, mark the key as used
+            if ($isLeaderRegistration && !empty($leaderKey)) {
+                $keyFile = 'logs/leader_keys.log';
+                if (file_exists($keyFile)) {
+                    $keys = file($keyFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    $updatedKeys = [];
+                    foreach ($keys as $line) {
+                        $parts = explode('|', $line);
+                        if (count($parts) >= 3 && $parts[1] === $leaderKey && $parts[2] === 'unused') {
+                            $parts[2] = 'used';
+                            $parts[3] = date('Y-m-d H:i:s');
+                            $parts[4] = $username;
+                        }
+                        $updatedKeys[] = implode('|', $parts);
+                    }
+                    file_put_contents($keyFile, implode("\n", $updatedKeys) . "\n");
+                }
+            }
+
+            $message = $isLeaderRegistration ? 
+                'Registration successful! Your account is active. Please log in with your credentials.' :
+                'Registration successful! Your account is inactive until you purchase a package. Please log in to continue.';
+            
+            redirect('login.php', $message);
 
         } catch (PDOException $e) {
             error_log("Registration error: " . $e->getMessage());
@@ -156,12 +206,28 @@ function old($field, $default = '') {
         .strength-weak { color: #dc3545; }
         .strength-medium { color: #ffc107; }
         .strength-strong { color: #198754; }
+        .leader-badge {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="bg-light">
 <div class="container py-5" style="max-width:600px">
     <div class="card shadow">
         <div class="card-body">
+            <?php if ($isLeaderRegistration): ?>
+                <div class="leader-badge mb-3">
+                    ⭐ Leader Registration - Account will be activated immediately
+                </div>
+            <?php endif; ?>
+            
             <h2 class="card-title mb-4 text-center">Create Your Account</h2>
             
             <!-- Display flash message -->
@@ -186,6 +252,10 @@ function old($field, $default = '') {
             <?php endif; ?>
 
             <form method="post" novalidate>
+                <?php if ($isLeaderRegistration): ?>
+                    <input type="hidden" name="leader_key" value="<?= htmlspecialchars($leaderKey, ENT_QUOTES, 'UTF-8') ?>">
+                <?php endif; ?>
+                
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="username" class="form-label">Username <span class="text-danger">*</span></label>

@@ -83,9 +83,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user = $stmt->fetch(PDO::FETCH_ASSOC);
                     
                     if ($user) {
-                        // Check if account is active
-                        if ($user['status'] !== 'active') {
-                            $errors[] = 'Your account is not active. Please contact support.';
+                        // Only block suspended accounts, allow inactive accounts to login
+                        if ($user['status'] === 'suspended') {
+                            $errors[] = 'Your account has been suspended. Please contact support.';
                         } elseif (password_verify($password, $user['password'])) {
                             // Successful login
                             clearRateLimit($identifier);
@@ -143,10 +143,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ");
                             $stmt->execute([$user['id'], $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT']]);
                             
-                            // Redirect to intended page or dashboard
+                            // Redirect logic based on account status
                             $redirectTo = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
                             unset($_SESSION['redirect_after_login']);
-                            redirect($redirectTo, 'Welcome back, ' . htmlspecialchars($user['username']) . '!');
+                            
+                            if ($user['status'] === 'inactive') {
+                                // For inactive users, redirect to store with activation message
+                                redirect('dashboard.php?page=store', 'Welcome! Your account is inactive. Purchase a package to activate your account and unlock all features.');
+                            } else {
+                                // For active users, normal welcome message
+                                redirect($redirectTo, 'Welcome back, ' . htmlspecialchars($user['username']) . '!');
+                            }
                             
                         } else {
                             // Invalid password
