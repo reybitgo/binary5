@@ -273,3 +273,43 @@ WHERE wt.type = 'package';
 
 -- Add index for performance
 ALTER TABLE wallet_tx ADD INDEX idx_package_id (package_id);
+
+ALTER TABLE wallet_tx MODIFY COLUMN type ENUM(
+    'topup',
+    'withdraw',
+    'transfer_in',
+    'transfer_out', 
+    'package',
+    'pair_bonus',
+    'referral_bonus',
+    'leadership_bonus',
+    'leadership_reverse_bonus',
+    'withdraw_hold',
+    'withdraw_reject',
+    'product_purchase',
+    'affiliate_bonus'
+) NOT NULL;
+
+/* ----------------------------------------------------------
+   PRODUCTS TABLE  – Individual items for sale & affiliate
+---------------------------------------------------------- */
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(12,2) NOT NULL,
+    image_url VARCHAR(500) DEFAULT NULL,
+    short_desc TEXT,
+    long_desc TEXT,
+    discount DECIMAL(5,2) NOT NULL DEFAULT 0,         -- % off retail
+    affiliate_rate DECIMAL(5,2) NOT NULL DEFAULT 0,   -- % paid to referrer
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+/* Sample starter products */
+INSERT INTO products (name, price, image_url, short_desc, long_desc, discount, affiliate_rate)
+VALUES
+('Digital Course – Starter', 29.99, 'https://cdn.example.com/course-starter.jpg', 'Beginner-friendly video course', 'Complete step-by-step videos to get you started in under 2 hours.', 10, 20),
+('E-book – Pro Guide', 19.99, 'https://cdn.example.com/ebook-pro.jpg', 'Advanced strategies PDF', '150-page guide with case studies, templates and checklists.', 15, 25),
+('Live Workshop Pass', 49.99, 'https://cdn.example.com/workshop.jpg', 'Interactive online session', 'Join a 3-hour live workshop with Q&A and worksheets.', 5, 30);

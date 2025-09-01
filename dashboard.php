@@ -13,17 +13,18 @@ $user = $stmt->fetch();
 $role = $user['role'];
 
 // Check if user is inactive and redirect them to store or show message
-if ($user['status'] === 'inactive' && !in_array($_GET['page'] ?? 'overview', ['overview', 'store', 'wallet', 'profile'])) {
+if ($user['status'] === 'inactive' && !in_array($_GET['page'] ?? 'overview', ['overview', 'store', 'wallet', 'profile', 'product_store', 'affiliate'])) {
     redirect('dashboard.php?page=store', 'Your account is inactive. Please purchase a package to activate your account.');
 }
 
 // Get current page from URL parameter, default to 'overview'
 $page = $_GET['page'] ?? 'overview';
-$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'profile'];
+$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'profile', 'product_store', 'affiliate'];
 
 if ($role === 'admin') {
     $allowed_pages[] = 'users'; // Add users page for admins
     $allowed_pages[] = 'settings'; // Add settings page for admins
+    $allowed_pages[] = 'manage_products'; // Add manage products for admins
 }
 
 // Validate page parameter
@@ -175,6 +176,81 @@ if ($_POST['action'] ?? '') {
                 redirect('dashboard.php?page=store', 'Purchase failed: ' . $e->getMessage());
             }
             break;
+        case 'buy_product': 
+            $pid = (int)$_POST['product_id'];
+            $aff = (int)($_POST['affiliate_id'] ?? 0);
+            
+            // Validate product exists and is active
+            $prod_stmt = $pdo->prepare("SELECT * FROM products WHERE id = ? AND active = 1");
+            $prod_stmt->execute([$pid]);
+            $prod = $prod_stmt->fetch();
+            
+            if (!$prod) {
+                redirect('dashboard.php?page=product_store', 'Product not found or inactive');
+            }
+
+            // Calculate final price after discount
+            $final_price = $prod['price'] * (1 - $prod['discount']/100);
+            
+            // Check user has sufficient balance
+            if ($user['balance'] < $final_price) {
+                redirect('dashboard.php?page=product_store', 'Insufficient balance. Need ' . number_format($final_price - $user['balance'], 2) . ' more.');
+            }
+
+            // Check if user account is active
+            if ($user['status'] !== 'active') {
+                redirect('dashboard.php?page=product_store', 'Your account must be active to make purchases. Please activate your account first.');
+            }
+
+            try {
+                $pdo->beginTransaction();
+                
+                // Deduct from buyer's wallet
+                $pdo->prepare("UPDATE wallets SET balance = balance - ? WHERE user_id = ?")
+                    ->execute([$final_price, $uid]);
+                
+                // Record purchase transaction
+                $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'product_purchase', ?)")
+                    ->execute([$uid, -$final_price]);
+
+                // Process affiliate commission if applicable
+                if ($aff && $aff !== $uid && $prod['affiliate_rate'] > 0) {
+                    // Validate affiliate user exists and is active
+                    $aff_user = $pdo->prepare("SELECT id, status FROM users WHERE id = ?");
+                    $aff_user->execute([$aff]);
+                    $aff_user = $aff_user->fetch();
+                    
+                    if ($aff_user && $aff_user['status'] === 'active') {
+                        $commission = $final_price * ($prod['affiliate_rate'] / 100);
+                        
+                        // Ensure affiliate has a wallet
+                        $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
+                            ->execute([$aff]);
+                        
+                        // Credit affiliate commission
+                        $pdo->prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?")
+                            ->execute([$commission, $aff]);
+                        
+                        // Record affiliate commission transaction
+                        $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'affiliate_bonus', ?)")
+                            ->execute([$aff, $commission]);
+                    }
+                }
+                
+                $pdo->commit();
+                
+                $message = 'Purchase completed successfully!';
+                if ($aff && $aff !== $uid && $prod['affiliate_rate'] > 0) {
+                    $message .= ' Affiliate commission has been processed.';
+                }
+                
+                redirect('dashboard.php?page=product_store', $message);
+                
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                redirect('dashboard.php?page=product_store', 'Purchase failed: ' . $e->getMessage());
+            }
+            break;
     }
 
     /* ---------- Admin wallet actions (approve / reject) ---------- */
@@ -243,6 +319,44 @@ if ($_POST['action'] ?? '') {
     }
 }
 
+function validateAffiliateLink($ref_id, $pdo) {
+    if (!$ref_id || $ref_id <= 0) return false;
+    
+    $stmt = $pdo->prepare("SELECT id, status FROM users WHERE id = ?");
+    $stmt->execute([$ref_id]);
+    $user = $stmt->fetch();
+    
+    return $user && $user['status'] === 'active';
+}
+
+function getProductEarnings($user_id, $pdo) {
+    $stmt = $pdo->prepare("
+        SELECT 
+            SUM(CASE WHEN type = 'affiliate_bonus' THEN amount ELSE 0 END) as total_affiliate,
+            COUNT(CASE WHEN type = 'affiliate_bonus' THEN 1 END) as total_sales,
+            MAX(created_at) as last_sale
+        FROM wallet_tx 
+        WHERE user_id = ? AND type = 'affiliate_bonus'
+    ");
+    $stmt->execute([$user_id]);
+    return $stmt->fetch();
+}
+
+function getTopAffiliateProducts($pdo, $limit = 5) {
+    return $pdo->prepare("
+        SELECT p.*, 
+            COUNT(wt.id) as sales_count,
+            SUM(ABS(wt.amount)) as total_sales_value
+        FROM products p
+        LEFT JOIN wallet_tx wt ON wt.type = 'product_purchase' 
+            AND ABS(wt.amount) = p.price * (1 - p.discount/100)
+        WHERE p.active = 1 AND p.affiliate_rate > 0
+        GROUP BY p.id
+        ORDER BY sales_count DESC, total_sales_value DESC
+        LIMIT ?
+    ")->execute([$limit])->fetchAll();
+}
+
 function flash() {
     if (isset($_SESSION['flash'])) {
         $msg = $_SESSION['flash'];
@@ -280,8 +394,13 @@ function flash() {
                 <a href="dashboard.php?page=mentor" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'mentor' ? 'bg-blue-500 text-white' : '' ?>">Mentor Bonus</a>
                 <a href="dashboard.php?page=wallet" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'wallet' ? 'bg-blue-500 text-white' : '' ?>">Wallet</a>
                 <a href="dashboard.php?page=store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'store' ? 'bg-blue-500 text-white' : '' ?>">Package Store</a>
+                <a href="dashboard.php?page=product_store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'product_store' ? 'bg-blue-500 text-white' : '' ?>">Product Store</a>
+                <a href="dashboard.php?page=affiliate" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'affiliate' ? 'bg-blue-500 text-white' : '' ?>">Affiliate</a>
                 <?php if ($role === 'admin'): ?>
                     <a href="dashboard.php?page=settings" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'settings' ? 'bg-blue-500 text-white' : '' ?>">Settings</a>
+                <?php endif; ?>
+                <?php if ($role === 'admin'): ?>
+                    <a href="dashboard.php?page=manage_products" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'manage_products' ? 'bg-blue-500 text-white' : '' ?>">Manage Products</a>
                 <?php endif; ?>
                 <a href="logout.php" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md">Logout</a>
             </nav>
