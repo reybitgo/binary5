@@ -3,7 +3,30 @@ ob_start();
 // dashboard.php - Main user dashboard with navigation and dynamic content loading
 require_once 'config.php';
 // require_once 'functions.php';
-if (!isset($_SESSION['user_id'])) redirect('login.php');
+
+/* 1️⃣ Persist affiliate id and product id for the whole session - MOVED TO TOP */
+if (isset($_GET['aff']) && (int)$_GET['aff'] > 0) {
+    $_SESSION['aff'] = (int)$_GET['aff'];
+}
+
+// Also persist product ID for deep-link highlighting
+if (isset($_GET['id']) && (int)$_GET['id'] > 0 && ($_GET['page'] ?? '') === 'product_store') {
+    $_SESSION['product_id'] = (int)$_GET['id'];
+}
+
+/* 2️⃣ Persist the requested URL before redirecting to login */
+if (!isset($_SESSION['user_id'])) {
+    // Build the redirect URL with all current parameters
+    $redirectParams = $_GET;
+    
+    // Ensure affiliate ID is included in redirect if it exists in session
+    if (isset($_SESSION['aff']) && !isset($redirectParams['aff'])) {
+        $redirectParams['aff'] = $_SESSION['aff'];
+    }
+    
+    $_SESSION['after_login_redirect'] = 'dashboard.php?' . http_build_query($redirectParams);
+    redirect('login.php');
+}
 
 // Fetch user data
 $uid = $_SESSION['user_id'];
@@ -13,6 +36,7 @@ $user = $stmt->fetch();
 $role = $user['role'];
 
 // Check if user is inactive and redirect them to store or show message
+// Note: product_store is allowed for inactive users
 if ($user['status'] === 'inactive' && !in_array($_GET['page'] ?? 'overview', ['overview', 'store', 'wallet', 'profile', 'product_store', 'affiliate'])) {
     redirect('dashboard.php?page=store', 'Your account is inactive. Please purchase a package to activate your account.');
 }
@@ -197,10 +221,7 @@ if ($_POST['action'] ?? '') {
                 redirect('dashboard.php?page=product_store', 'Insufficient balance. Need ' . number_format($final_price - $user['balance'], 2) . ' more.');
             }
 
-            // Check if user account is active
-            if ($user['status'] !== 'active') {
-                redirect('dashboard.php?page=product_store', 'Your account must be active to make purchases. Please activate your account first.');
-            }
+            // Note: Inactive users are allowed to buy products (unlike packages)
 
             try {
                 $pdo->beginTransaction();
@@ -365,6 +386,23 @@ function flash() {
     }
     return '';
 }
+
+// Helper function to build navigation links with affiliate persistence
+function buildNavLink($targetPage, $currentPage = '') {
+    $params = ['page' => $targetPage];
+    
+    // Add affiliate ID if it exists in session and we're going to product_store
+    if ($targetPage === 'product_store' && isset($_SESSION['aff'])) {
+        $params['aff'] = $_SESSION['aff'];
+        
+        // Also preserve the product ID if it exists in session
+        if (isset($_SESSION['product_id'])) {
+            $params['id'] = $_SESSION['product_id'];
+        }
+    }
+    
+    return 'dashboard.php?' . http_build_query($params);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -394,7 +432,7 @@ function flash() {
                 <a href="dashboard.php?page=mentor" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'mentor' ? 'bg-blue-500 text-white' : '' ?>">Mentor Bonus</a>
                 <a href="dashboard.php?page=wallet" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'wallet' ? 'bg-blue-500 text-white' : '' ?>">Wallet</a>
                 <a href="dashboard.php?page=store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'store' ? 'bg-blue-500 text-white' : '' ?>">Package Store</a>
-                <a href="dashboard.php?page=product_store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'product_store' ? 'bg-blue-500 text-white' : '' ?>">Product Store</a>
+                <a href="<?= buildNavLink('product_store', $page) ?>" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'product_store' ? 'bg-blue-500 text-white' : '' ?>">Product Store</a>
                 <a href="dashboard.php?page=affiliate" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'affiliate' ? 'bg-blue-500 text-white' : '' ?>">Affiliate</a>
                 <?php if ($role === 'admin'): ?>
                     <a href="dashboard.php?page=settings" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'settings' ? 'bg-blue-500 text-white' : '' ?>">Settings</a>

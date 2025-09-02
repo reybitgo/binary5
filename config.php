@@ -12,7 +12,6 @@ if (session_status() === PHP_SESSION_NONE) {
 // define('PAIR_RATE',     0.20);
 // define('REFERRAL_RATE', 0.10);
 // define('LEADERSHIP_RATE', 0.05);
-// define('LEADERSHIP_REVERSE_RATE', 0.05);
 
 define('B2P_CONTRACT', '0xf8ab9ff465c612d5be6a56716adf95c52f8bc72d');
 define('USDT_B2P_RATE', 1);

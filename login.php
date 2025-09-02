@@ -1,95 +1,102 @@
 <?php
-// login.php - Enhanced user login with security features
+// login.php - Enhanced login with affiliate-link redirect
 require 'config.php';
+
+// Enable error reporting for debugging (remove in production)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+/* ---------- Persist affiliate id through login ---------- */
+if (isset($_GET['aff']) && ($aff = (int)$_GET['aff']) > 0) {
+    $_SESSION['after_login_aff'] = $aff;
+}
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id'])) {
     redirect('dashboard.php');
 }
 
-// Rate limiting - prevent brute force attacks
+/* ---------- Rate-limit helpers ---------- */
 function checkRateLimit($identifier) {
     global $pdo;
-    
     $maxAttempts = 5;
-    $timeWindow = 900; // 15 minutes in seconds
-    
-    // Clean old attempts
-    $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL ? SECOND)");
-    $stmt->execute([$timeWindow]);
-    
-    // Count recent attempts
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL ? SECOND)");
-    $stmt->execute([$identifier, $timeWindow]);
-    $attempts = $stmt->fetchColumn();
-    
-    if ($attempts >= $maxAttempts) {
-        return false; // Rate limit exceeded
+    $timeWindow = 900; // 15 minutes
+
+    try {
+        // Clean old attempts
+        $pdo->prepare("DELETE FROM login_attempts WHERE attempt_time < DATE_SUB(NOW(), INTERVAL ? SECOND)")
+            ->execute([$timeWindow]);
+
+        // Check current attempts
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL ? SECOND)");
+        $stmt->execute([$identifier, $timeWindow]);
+        
+        if ($stmt->fetchColumn() >= $maxAttempts) {
+            return false;
+        }
+
+        // Record this attempt
+        $pdo->prepare("INSERT INTO login_attempts (identifier, attempt_time) VALUES (?, NOW())")
+            ->execute([$identifier]);
+        
+        return true;
+    } catch (PDOException $e) {
+        error_log('Rate limit check error: ' . $e->getMessage());
+        return true; // Allow login attempt if rate limiting fails
     }
-    
-    // Log this attempt
-    $stmt = $pdo->prepare("INSERT INTO login_attempts (identifier, attempt_time) VALUES (?, NOW())");
-    $stmt->execute([$identifier]);
-    
-    return true;
 }
 
-// Clear rate limit on successful login
 function clearRateLimit($identifier) {
     global $pdo;
-    $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE identifier = ?");
-    $stmt->execute([$identifier]);
+    try {
+        $pdo->prepare("DELETE FROM login_attempts WHERE identifier = ?")->execute([$identifier]);
+    } catch (PDOException $e) {
+        error_log('Clear rate limit error: ' . $e->getMessage());
+    }
 }
 
+/* ---------- Form handling ---------- */
 $errors = [];
 $username = '';
 
-// Process login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // CSRF validation
+    // CSRF token validation
     if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
         $errors[] = 'Invalid security token. Please try again.';
     } else {
-        // Sanitize input
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
         $remember = isset($_POST['remember']);
-        
+
         // Basic validation
-        if (empty($username)) {
-            $errors[] = 'Username is required.';
-        }
-        if (empty($password)) {
-            $errors[] = 'Password is required.';
-        }
-        
+        if (empty($username)) $errors[] = 'Username is required.';
+        if (empty($password)) $errors[] = 'Password is required.';
+
         if (empty($errors)) {
-            // Check rate limiting (by IP and username)
             $identifier = $_SERVER['REMOTE_ADDR'] . ':' . $username;
             
             if (!checkRateLimit($identifier)) {
                 $errors[] = 'Too many login attempts. Please try again in 15 minutes.';
             } else {
                 try {
-                    // Fetch user with additional fields for security checks
+                    // Find user by username or email
                     $stmt = $pdo->prepare("
-                        SELECT id, username, password, email, status, 
-                               last_login, failed_attempts
-                        FROM users 
+                        SELECT id, username, password, email, status, last_login, failed_attempts
+                        FROM users
                         WHERE username = ? OR email = ?
                         LIMIT 1
                     ");
                     $stmt->execute([$username, $username]);
                     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                    
+
                     if ($user) {
-                        // Only block suspended accounts, allow inactive accounts to login
                         if ($user['status'] === 'suspended') {
                             $errors[] = 'Your account has been suspended. Please contact support.';
                         } elseif (password_verify($password, $user['password'])) {
-                            // Successful login
+                            /* ---------- LOGIN SUCCESS ---------- */
                             clearRateLimit($identifier);
-                            
+
                             // Regenerate session ID for security
                             session_regenerate_id(true);
                             
@@ -98,95 +105,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $_SESSION['username'] = $user['username'];
                             $_SESSION['login_time'] = time();
                             $_SESSION['last_activity'] = time();
-                            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'];
-                            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'];
-                            
-                            // Update last login and reset failed attempts
-                            $stmt = $pdo->prepare("
-                                UPDATE users 
-                                SET last_login = NOW(), 
-                                    failed_attempts = 0,
-                                    last_ip = ?
-                                WHERE id = ?
-                            ");
-                            $stmt->execute([$_SERVER['REMOTE_ADDR'], $user['id']]);
-                            
-                            // Handle "Remember Me" functionality
-                            if ($remember) {
-                                $token = bin2hex(random_bytes(32));
-                                $hashedToken = hash('sha256', $token);
-                                $expires = time() + (30 * 24 * 60 * 60); // 30 days
-                                
-                                // Store token in database
-                                $stmt = $pdo->prepare("
-                                    INSERT INTO remember_tokens (user_id, token_hash, expires_at)
-                                    VALUES (?, ?, FROM_UNIXTIME(?))
-                                ");
-                                $stmt->execute([$user['id'], $hashedToken, $expires]);
-                                
-                                // Set cookie
-                                setcookie(
-                                    'remember_token',
-                                    $user['id'] . ':' . $token,
-                                    $expires,
-                                    '/',
-                                    '',
-                                    true,  // Secure (HTTPS only in production)
-                                    true   // HttpOnly
-                                );
-                            }
-                            
+                            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
+                            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
+
+                            // Update user login info
+                            $pdo->prepare("UPDATE users SET last_login = NOW(), failed_attempts = 0, last_ip = ? WHERE id = ?")
+                                ->execute([$_SERVER['REMOTE_ADDR'] ?? '', $user['id']]);
+
                             // Log successful login
-                            $stmt = $pdo->prepare("
-                                INSERT INTO login_logs (user_id, ip_address, user_agent, status, created_at)
-                                VALUES (?, ?, ?, 'success', NOW())
-                            ");
-                            $stmt->execute([$user['id'], $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT']]);
-                            
-                            // Redirect logic based on account status
-                            $redirectTo = $_SESSION['redirect_after_login'] ?? 'dashboard.php';
-                            unset($_SESSION['redirect_after_login']);
-                            
+                            try {
+                                $pdo->prepare("INSERT INTO login_logs (user_id, ip_address, user_agent, status, attempted_username, created_at) VALUES (?, ?, ?, 'success', ?, NOW())")
+                                    ->execute([
+                                        $user['id'],
+                                        $_SERVER['REMOTE_ADDR'] ?? '',
+                                        $_SERVER['HTTP_USER_AGENT'] ?? '',
+                                        $username
+                                    ]);
+                            } catch (PDOException $e) {
+                                error_log('Login log error: ' . $e->getMessage());
+                            }
+
+                            /* ---------- Remember-me cookie ---------- */
+                            if ($remember) {
+                                try {
+                                    $token = bin2hex(random_bytes(32));
+                                    $hash = hash('sha256', $token);
+                                    $exp = time() + (30 * 24 * 60 * 60); // 30 days
+                                    
+                                    $pdo->prepare("INSERT INTO remember_tokens (user_id, token_hash, expires_at) VALUES (?, ?, FROM_UNIXTIME(?))")
+                                        ->execute([$user['id'], $hash, $exp]);
+                                    
+                                    setcookie(
+                                        'remember_token',
+                                        $user['id'] . ':' . $token,
+                                        $exp,
+                                        '/',
+                                        '',
+                                        isset($_SERVER['HTTPS']), // Secure flag
+                                        true // HttpOnly flag
+                                    );
+                                } catch (Exception $e) {
+                                    error_log('Remember token error: ' . $e->getMessage());
+                                }
+                            }
+
+                            /* ---------- Redirect logic ---------- */
+                            $redirectTo = $_SESSION['after_login_redirect'] ?? 'dashboard.php';
+                            unset($_SESSION['after_login_redirect']);
+
                             if ($user['status'] === 'inactive') {
-                                // For inactive users, redirect to store with activation message
-                                redirect('dashboard.php?page=store', 'Welcome! Your account is inactive. Purchase a package to activate your account and unlock all features.');
+                                // Allow redirect to product store for inactive users
+                                if (strpos($redirectTo, 'page=product_store') !== false) {
+                                    redirect($redirectTo, 'Welcome back, ' . htmlspecialchars($user['username']) . '!');
+                                } else {
+                                    redirect('dashboard.php?page=store', 'Welcome! Your account is inactive. Purchase a package to unlock all features.');
+                                }
                             } else {
-                                // For active users, normal welcome message
                                 redirect($redirectTo, 'Welcome back, ' . htmlspecialchars($user['username']) . '!');
                             }
-                            
+
                         } else {
-                            // Invalid password
+                            /* ---------- Invalid password ---------- */
                             $errors[] = 'Invalid username or password.';
                             
-                            // Update failed attempts count
-                            $stmt = $pdo->prepare("
-                                UPDATE users 
-                                SET failed_attempts = failed_attempts + 1 
-                                WHERE id = ?
-                            ");
-                            $stmt->execute([$user['id']]);
-                            
-                            // Log failed attempt
-                            $stmt = $pdo->prepare("
-                                INSERT INTO login_logs (user_id, ip_address, user_agent, status, created_at)
-                                VALUES (?, ?, ?, 'failed', NOW())
-                            ");
-                            $stmt->execute([$user['id'], $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT']]);
+                            // Increment failed attempts
+                            try {
+                                $pdo->prepare("UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = ?")
+                                    ->execute([$user['id']]);
+                            } catch (PDOException $e) {
+                                error_log('Failed attempt update error: ' . $e->getMessage());
+                            }
+
+                            // Log failed login
+                            try {
+                                $pdo->prepare("INSERT INTO login_logs (user_id, ip_address, user_agent, status, attempted_username, created_at) VALUES (?, ?, ?, 'failed', ?, NOW())")
+                                    ->execute([
+                                        $user['id'],
+                                        $_SERVER['REMOTE_ADDR'] ?? '',
+                                        $_SERVER['HTTP_USER_AGENT'] ?? '',
+                                        $username
+                                    ]);
+                            } catch (PDOException $e) {
+                                error_log('Failed login log error: ' . $e->getMessage());
+                            }
                         }
                     } else {
-                        // User not found
                         $errors[] = 'Invalid username or password.';
                         
-                        // Log failed attempt (no user)
-                        $stmt = $pdo->prepare("
-                            INSERT INTO login_logs (user_id, ip_address, user_agent, status, attempted_username, created_at)
-                            VALUES (NULL, ?, ?, 'failed', ?, NOW())
-                        ");
-                        $stmt->execute([$_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_USER_AGENT'], $username]);
+                        // Log failed login attempt (no user found)
+                        try {
+                            $pdo->prepare("INSERT INTO login_logs (user_id, ip_address, user_agent, status, attempted_username, created_at) VALUES (NULL, ?, ?, 'failed', ?, NOW())")
+                                ->execute([
+                                    $_SERVER['REMOTE_ADDR'] ?? '',
+                                    $_SERVER['HTTP_USER_AGENT'] ?? '',
+                                    $username
+                                ]);
+                        } catch (PDOException $e) {
+                            error_log('Failed login log error: ' . $e->getMessage());
+                        }
                     }
                 } catch (PDOException $e) {
-                    error_log('Login error: ' . $e->getMessage());
+                    error_log('Login database error: ' . $e->getMessage());
                     $errors[] = 'An error occurred. Please try again later.';
                 }
             }
@@ -194,8 +213,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Generate CSRF token for form
-$csrfToken = generateCSRFToken();
+// Generate CSRF token
+try {
+    $csrfToken = generateCSRFToken();
+} catch (Exception $e) {
+    error_log('CSRF token generation error: ' . $e->getMessage());
+    $csrfToken = '';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -207,132 +231,51 @@ $csrfToken = generateCSRFToken();
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         body {
-            /* background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%); */
             background: url('images/login-bg.jpg') no-repeat center center / cover;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
             justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-            max-width: 400px;
-            width: 100%;
-            margin: 0 auto;
+        .login-container { 
+            background: white; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 60px rgba(0,0,0,.3); 
+            max-width: 400px; 
+            width: 100%; 
+            margin: auto; 
+            overflow: hidden; 
         }
-        .login-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%);
-            color: white;
-            padding: 2rem;
-            text-align: center;
+        .login-header { 
+            background: linear-gradient(135deg, #3b82f6, #2f68c5); 
+            color: white; 
+            padding: 2rem; 
+            text-align: center; 
         }
-        .login-header h2 {
-            margin: 0;
-            font-weight: 600;
-            font-size: 1.8rem;
+        .login-body { 
+            padding: 2rem; 
         }
-        .login-header p {
-            margin: 0.5rem 0 0;
-            opacity: 0.9;
-            font-size: 0.95rem;
+        .btn-login { 
+            background: linear-gradient(135deg, #3b82f6, #2f68c5); 
+            border: none; 
+            font-weight: 600; 
+            letter-spacing: .5px; 
         }
-        .login-body {
-            padding: 2rem;
+        .btn-login:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
         }
-        .form-floating > label {
-            color: #6c757d;
+        .copyright { 
+            color: white; 
+            text-align: center; 
+            margin-top: 1rem; 
         }
         .form-floating > .form-control:focus ~ label {
             color: #3b82f6;
         }
-        .form-control:focus {
+        .form-floating > .form-control:focus {
             border-color: #3b82f6;
             box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
-        }
-        .btn-login {
-            background: linear-gradient(135deg, #3b82f6 0%, #2f68c5 100%);
-            border: none;
-            padding: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            color: white;
-        }
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
-            color: white;
-        }
-        .password-toggle {
-            cursor: pointer;
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10;
-            color: #6c757d;
-            background: white;
-            border: none;
-            padding: 5px;
-        }
-        .password-toggle:hover {
-            color: #3b82f6;
-        }
-        .form-check-input:checked {
-            background-color: #3b82f6;
-            border-color: #3b82f6;
-        }
-        .link-primary {
-            color: #3b82f6 !important;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .link-primary:hover {
-            color: #2f68c5 !important;
-            text-decoration: underline;
-        }
-        .alert {
-            border-radius: 10px;
-            border: none;
-        }
-        .divider {
-            text-align: center;
-            margin: 1.5rem 0;
-            position: relative;
-        }
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: #e0e0e0;
-        }
-        .divider span {
-            background: white;
-            padding: 0 1rem;
-            position: relative;
-            color: #6c757d;
-            font-size: 0.9rem;
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        .shake {
-            animation: shake 0.5s;
-        }
-        .copyright {
-            padding: 1rem 0;
-            width: 100%;
-            text-align: center;
-            color: white;
         }
     </style>
 </head>
@@ -340,11 +283,11 @@ $csrfToken = generateCSRFToken();
     <div class="container d-flex flex-column align-items-center min-vh-100">
         <div class="login-container">
             <div class="login-header">
-                <i class="bi bi-shield-lock-fill" style="font-size: 3rem;"></i>
+                <i class="bi bi-shield-lock-fill" style="font-size:3rem;"></i>
                 <h2 class="mt-3">Welcome Back</h2>
                 <p>Login to access your dashboard</p>
             </div>
-            
+
             <div class="login-body">
                 <?php if (isset($_SESSION['flash'])): ?>
                     <div class="alert alert-info alert-dismissible fade show" role="alert">
@@ -354,152 +297,105 @@ $csrfToken = generateCSRFToken();
                     </div>
                     <?php unset($_SESSION['flash']); ?>
                 <?php endif; ?>
-                
-                <?php if (!empty($errors)): ?>
-                    <div class="alert alert-danger alert-dismissible fade show shake" role="alert">
+
+                <?php if ($errors): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <?php foreach ($errors as $error): ?>
-                            <?= htmlspecialchars($error) ?><br>
+                        <?php foreach ($errors as $e): ?>
+                            <?= htmlspecialchars($e) ?><br>
                         <?php endforeach; ?>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
-                
-                <form method="POST" action="" id="loginForm" novalidate>
+
+                <form method="POST" id="loginForm" novalidate>
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                    
+
                     <div class="form-floating mb-3">
-                        <input type="text" 
-                               class="form-control" 
-                               id="username" 
-                               name="username" 
-                               placeholder="Username or Email"
-                               value="<?= htmlspecialchars($username) ?>"
-                               required
-                               autocomplete="username">
-                        <label for="username">
-                            <i class="bi bi-person-fill me-1"></i>
-                            Username or Email
-                        </label>
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" value="<?= htmlspecialchars($username) ?>" required>
+                        <label for="username"><i class="bi bi-person-fill me-1"></i>Username or Email</label>
                     </div>
-                    
+
                     <div class="form-floating mb-3 position-relative">
-                        <input type="password" 
-                               class="form-control" 
-                               id="password" 
-                               name="password" 
-                               placeholder="Password"
-                               required
-                               autocomplete="current-password">
-                        <label for="password">
-                            <i class="bi bi-lock-fill me-1"></i>
-                            Password
-                        </label>
-                        <button type="button" class="password-toggle" onclick="togglePassword()">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                        <label for="password"><i class="bi bi-lock-fill me-1"></i>Password</label>
+                        <button type="button" class="btn btn-sm position-absolute top-50 end-0 translate-middle-y border-0 bg-white" onclick="togglePassword()" style="z-index: 10;">
                             <i class="bi bi-eye" id="toggleIcon"></i>
                         </button>
                     </div>
-                    
+
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <div class="form-check">
-                            <input class="form-check-input" 
-                                   type="checkbox" 
-                                   id="remember" 
-                                   name="remember">
-                            <label class="form-check-label" for="remember">
-                                Remember me
-                            </label>
+                            <input class="form-check-input" type="checkbox" id="remember" name="remember">
+                            <label class="form-check-label" for="remember">Remember me</label>
                         </div>
-                        <a href="forgot-password.php" class="link-primary">
-                            Forgot password?
-                        </a>
+                        <?php if (file_exists('forgot-password.php')): ?>
+                            <a href="forgot-password.php" class="link-primary">Forgot password?</a>
+                        <?php endif; ?>
                     </div>
-                    
-                    <button type="submit" class="btn btn-login w-100 mb-3">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>
-                        Sign In
+
+                    <button type="submit" class="btn btn-login w-100 text-white">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
                     </button>
-                    
-                    <div class="divider">
-                        <span>OR</span>
-                    </div>
-                    
-                    <div class="text-center">
-                        <p class="mb-2">Don't have an account?</p>
-                        <a href="register.php" class="link-primary">
-                            <i class="bi bi-person-plus-fill me-1"></i>
-                            Create Account
-                        </a>
-                    </div>
-                    
+
                     <div class="text-center mt-3">
-                        <a href="index.php" class="link-secondary text-decoration-none">
-                            <i class="bi bi-arrow-left me-1"></i>
-                            Back to Home
-                        </a>
+                        <?php if (file_exists('register.php')): ?>
+                            <a href="register.php" class="link-primary">Create an account</a><br>
+                        <?php endif; ?>
+                        <?php if (file_exists('index.php')): ?>
+                            <a href="index.php" class="link-secondary text-decoration-none mt-2 d-inline-block">
+                                <i class="bi bi-arrow-left me-1"></i>Back to Home
+                            </a>
+                        <?php endif; ?>
                     </div>
                 </form>
             </div>
         </div>
-        
-        <div class="copyright mt-4">
+
+        <div class="copyright">
             <small>&copy; <?= date('Y') ?> Binary MLM System. All rights reserved.</small>
         </div>
     </div>
+
+    <!-- Bootstrap JS with fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" 
+            onerror="console.error('Bootstrap JS failed to load from CDN')"></script>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Password visibility toggle
         function togglePassword() {
-            const passwordInput = document.getElementById('password');
+            const passwordField = document.getElementById('password');
             const toggleIcon = document.getElementById('toggleIcon');
             
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.remove('bi-eye');
-                toggleIcon.classList.add('bi-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.remove('bi-eye-slash');
-                toggleIcon.classList.add('bi-eye');
+            if (passwordField && toggleIcon) {
+                if (passwordField.type === 'password') {
+                    passwordField.type = 'text';
+                    toggleIcon.className = 'bi bi-eye-slash';
+                } else {
+                    passwordField.type = 'password';
+                    toggleIcon.className = 'bi bi-eye';
+                }
             }
         }
-        
+
+        // Auto-focus username field
+        document.addEventListener('DOMContentLoaded', function() {
+            const usernameField = document.getElementById('username');
+            if (usernameField) {
+                usernameField.focus();
+            }
+        });
+
         // Form validation
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
+        document.getElementById('loginForm')?.addEventListener('submit', function(e) {
+            const username = document.getElementById('username')?.value.trim();
+            const password = document.getElementById('password')?.value;
             
             if (!username || !password) {
                 e.preventDefault();
-                e.stopPropagation();
-                
-                if (!username) {
-                    document.getElementById('username').classList.add('is-invalid');
-                }
-                if (!password) {
-                    document.getElementById('password').classList.add('is-invalid');
-                }
+                alert('Please fill in all required fields.');
+                return false;
             }
         });
-        
-        // Remove invalid class on input
-        document.getElementById('username').addEventListener('input', function() {  
-            this.classList.remove('is-invalid');
-        });
-        
-        document.getElementById('password').addEventListener('input', function() {
-            this.classList.remove('is-invalid');
-        });
-        
-        // Auto-hide alerts after 5 seconds
-        setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(function(alert) {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            });
-        }, 5000);
     </script>
 </body>
 </html>

@@ -88,9 +88,11 @@
         </div>
     </section>
 <?php else: ?>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">        
+    <!-- User Dashboard Metrics -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">        
+        <!-- Total Referrals -->
         <a href="dashboard.php?page=referrals">    
-            <div class="bg-white shadow rounded-lg p-6">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold text-gray-700">Total Referrals</h3>
                 <p class="text-2xl text-blue-500">
                     <?php
@@ -101,37 +103,145 @@
                 </p>
             </div>
         </a>
+
+        <!-- Pairs Today -->
         <a href="dashboard.php?page=binary">
-            <div class="bg-white shadow rounded-lg p-6">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold text-gray-700">Pairs Today</h3>
                 <p class="text-2xl text-blue-500"><?=$user['pairs_today']?>/10</p>
             </div>
         </a>
+
+        <!-- Personal Volume -->
         <a href="dashboard.php?page=leadership">
-            <div class="bg-white shadow rounded-lg p-6">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold text-gray-700">Personal Volume</h3>
                 <p class="text-2xl text-blue-500">
                     <?php
                     require_once 'functions.php';
-                    $volume = getPersonalVolume($uid, $pdo, 0);
+                    $volume = getPersonalVolume($uid, $pdo);
                     echo '$'.number_format($volume, 2);
                     ?>
                 </p>
             </div>
         </a>
+
+        <!-- Team Volume -->
         <a href="dashboard.php?page=leadership">
-            <div class="bg-white shadow rounded-lg p-6">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
                 <h3 class="text-lg font-semibold text-gray-700">Team Volume</h3>
                 <p class="text-2xl text-blue-500">
                     <?php
                     require_once 'functions.php';
-                    $volume = getGroupVolume($uid, $pdo, 0);
+                    $volume = getGroupVolume($uid, $pdo);
                     echo '$'.number_format($volume, 2);
+                    ?>
+                </p>
+            </div>
+        </a>
+
+        <!-- Affiliate Earnings -->
+        <a href="dashboard.php?page=affiliate">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
+                <h3 class="text-lg font-semibold text-gray-700">Affiliate Earnings</h3>
+                <p class="text-2xl text-purple-500">
+                    <?php
+                    $affiliate_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type = 'affiliate_bonus'");
+                    $affiliate_earnings->execute([$uid]);
+                    echo '$'.number_format($affiliate_earnings->fetchColumn(), 2);
+                    ?>
+                </p>
+            </div>
+        </a>
+
+        <!-- Matched Bonus (Leadership) -->
+        <a href="dashboard.php?page=leadership">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
+                <h3 class="text-lg font-semibold text-gray-700">Matched Bonus</h3>
+                <p class="text-2xl text-green-500">
+                    <?php
+                    $leadership_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type IN ('leadership_bonus', 'leadership_reverse_bonus')");
+                    $leadership_earnings->execute([$uid]);
+                    echo '$'.number_format($leadership_earnings->fetchColumn(), 2);
+                    ?>
+                </p>
+            </div>
+        </a>
+
+        <!-- Mentor Bonus -->
+        <a href="dashboard.php?page=mentor">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
+                <h3 class="text-lg font-semibold text-gray-700">Mentor Bonus</h3>
+                <p class="text-2xl text-orange-500">
+                    <?php
+                    // Note: Mentor bonus type would need to be added to wallet_tx type enum
+                    // For now, showing 0 as placeholder
+                    $mentor_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type = 'mentor_bonus'");
+                    $mentor_earnings->execute([$uid]);
+                    echo '$'.number_format($mentor_earnings->fetchColumn(), 2);
+                    ?>
+                </p>
+            </div>
+        </a>
+
+        <!-- Binary Bonus -->
+        <a href="dashboard.php?page=binary">
+            <div class="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow">
+                <h3 class="text-lg font-semibold text-gray-700">Binary Bonus</h3>
+                <p class="text-2xl text-indigo-500">
+                    <?php
+                    $binary_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type = 'pair_bonus'");
+                    $binary_earnings->execute([$uid]);
+                    echo '$'.number_format($binary_earnings->fetchColumn(), 2);
                     ?>
                 </p>
             </div>
         </a>
     </div>
+
+    <!-- Earnings Summary Section -->
+    <section class="mt-6 bg-white shadow rounded-lg p-6">
+        <h3 class="text-lg font-bold mb-4 text-gray-700">Earnings Summary</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <?php
+            // Get all earnings by type for this user
+            $earningsStmt = $pdo->prepare("
+                SELECT 
+                    type,
+                    SUM(amount) as total,
+                    COUNT(*) as count,
+                    MAX(created_at) as last_earned
+                FROM wallet_tx 
+                WHERE user_id = ? 
+                    AND type IN ('referral_bonus', 'pair_bonus', 'leadership_bonus', 'leadership_reverse_bonus', 'affiliate_bonus', 'mentor_bonus')
+                    AND amount > 0
+                GROUP BY type
+                ORDER BY total DESC
+            ");
+            $earningsStmt->execute([$uid]);
+            $earnings = $earningsStmt->fetchAll();
+
+            $totalEarnings = 0;
+            foreach ($earnings as $earning) {
+                $totalEarnings += $earning['total'];
+            }
+            ?>
+            
+            <!-- Total Earnings -->
+            <div class="bg-gradient-to-r from-green-400 to-green-600 text-white p-4 rounded-lg">
+                <h4 class="text-sm font-medium">Total Earnings</h4>
+                <p class="text-2xl font-bold">$<?= number_format($totalEarnings, 2) ?></p>
+            </div>
+
+            <?php foreach ($earnings as $earning): ?>
+                <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                    <h4 class="text-sm font-medium text-gray-600"><?= ucwords(str_replace(['_', 'bonus'], [' ', ''], $earning['type'])) ?></h4>
+                    <p class="text-xl font-bold text-gray-800">$<?= number_format($earning['total'], 2) ?></p>
+                    <p class="text-xs text-gray-500"><?= $earning['count'] ?> payments</p>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
     <section class="mt-6 bg-white shadow rounded-lg p-4">
         <h3 class="text-lg font-bold mb-2 text-gray-700">Quick Actions</h3>
