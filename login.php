@@ -316,11 +316,16 @@ try {
                         <label for="username"><i class="bi bi-person-fill me-1"></i>Username or Email</label>
                     </div>
 
-                    <div class="form-floating mb-3 position-relative">
+                    <div class="form-floating mb-3">
                         <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
                         <label for="password"><i class="bi bi-lock-fill me-1"></i>Password</label>
-                        <button type="button" class="btn btn-sm position-absolute top-50 end-0 translate-middle-y border-0 bg-white" onclick="togglePassword()" style="z-index: 10;">
-                            <i class="bi bi-eye" id="toggleIcon"></i>
+
+                        <button type="button"
+                                class="btn position-absolute top-50 translate-middle-y border-0 bg-transparent p-0"
+                                style="right: 0.75rem; height: 1.125rem; line-height: 1; z-index: 5;"
+                                onclick="togglePassword()"
+                                aria-label="Toggle password visibility">
+                            <i class="bi bi-eye" id="toggleIcon" style="font-size: 1.125rem;"></i>
                         </button>
                     </div>
 

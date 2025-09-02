@@ -322,6 +322,7 @@ $isReferralRegistration = !empty($referralSponsor);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Binary MLM System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         body {
             background: url('images/register-bg.jpg') no-repeat center center / cover;
@@ -369,6 +370,18 @@ $isReferralRegistration = !empty($referralSponsor);
             padding: 1rem;
             margin-bottom: 1rem;
         }
+        .password-toggle {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            z-index: 5;
+            background: transparent;
+            border: none;
+            color: #3b82f6;
+        }
+        .password-wrapper { position: relative; }
     </style>
 </head>
 <body class="bg-light">
@@ -462,17 +475,29 @@ $isReferralRegistration = !empty($referralSponsor);
                 </div>
 
                 <div class="row">
+                    <!-- Password -->
                     <div class="col-md-6 mb-3">
                         <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="password" name="password" 
-                               required minlength="6" maxlength="255">
+                        <div class="password-wrapper">
+                            <input type="password" class="form-control" id="password" name="password"
+                                required minlength="6" maxlength="255">
+                            <button type="button" class="password-toggle" onclick="togglePwd('password','icon1')">
+                                <i class="bi bi-eye" id="icon1"></i>
+                            </button>
+                        </div>
                         <div id="passwordStrength" class="password-strength"></div>
                     </div>
-                    
+
+                    <!-- Confirm Password -->
                     <div class="col-md-6 mb-3">
                         <label for="confirm_password" class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" 
-                               required minlength="6" maxlength="255">
+                        <div class="password-wrapper">
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                                required minlength="6" maxlength="255">
+                            <button type="button" class="password-toggle" onclick="togglePwd('confirm_password','icon2')">
+                                <i class="bi bi-eye" id="icon2"></i>
+                            </button>
+                        </div>
                         <div id="passwordMatch" class="form-text"></div>
                     </div>
                 </div>
@@ -854,6 +879,19 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php endif; ?>
 });
 <?php endif; ?>
+
+function togglePwd(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon  = document.getElementById(iconId);
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
 </script>
 </body>
 </html>
