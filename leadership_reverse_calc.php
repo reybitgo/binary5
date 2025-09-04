@@ -94,11 +94,13 @@ function calc_leadership_reverse(int $ancestorId, float $pairBonus, PDO $pdo): v
                  VALUES (?, ?, CURDATE(), ?)'
             )->execute([$descId, $netBonus, 'mentor_requirements_not_met']);
 
-            // Log flush for DESCENDANT
+            // Log flush for DESCENDANT - use INSERT IGNORE or ON DUPLICATE KEY UPDATE
             $pdo->prepare(
-                'INSERT INTO mentor_flush_log
+                'INSERT IGNORE INTO mentor_flush_log
                    (ancestor_id, descendant_id, level, amount, flushed_on)
-                 VALUES (?, ?, ?, ?, CURDATE())'
+                 VALUES (?, ?, ?, ?, CURDATE())
+                 ON DUPLICATE KEY UPDATE
+                   amount = amount + VALUES(amount)'
             )->execute([$ancestorId, $descId, $level, $netBonus]);
         }
     }

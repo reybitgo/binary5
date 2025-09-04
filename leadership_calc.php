@@ -84,11 +84,13 @@ function calc_leadership(int $earnerId, float $pairBonus, PDO $pdo): void
                  VALUES (?, ?, CURDATE(), ?)'
             )->execute([$ancestorId, $netBonus, 'leadership_requirements_not_met']);
 
-            // Log flush for ANCESTOR
+            // Log flush for ANCESTOR - use INSERT IGNORE or ON DUPLICATE KEY UPDATE
             $pdo->prepare(
-                'INSERT INTO leadership_flush_log
+                'INSERT IGNORE INTO leadership_flush_log
                    (ancestor_id, downline_id, level, amount, flushed_on)
-                 VALUES (?, ?, ?, ?, CURDATE())'
+                 VALUES (?, ?, ?, ?, CURDATE())
+                 ON DUPLICATE KEY UPDATE
+                   amount = amount + VALUES(amount)'
             )->execute([$ancestorId, $earnerId, $level, $netBonus]);
         }
 

@@ -6,21 +6,27 @@ require_once 'leadership_reverse_calc.php';
 function setupTestData(PDO $pdo) {
     echo "🧪 Setting up test data...<br>";
     
+    // Clear existing test data
+    $pdo->exec("DELETE FROM wallet_tx WHERE user_id > 0");
+    $pdo->exec("DELETE FROM wallets WHERE user_id > 0");
+    $pdo->exec("DELETE FROM users WHERE id > 0");
+    $pdo->exec("ALTER TABLE users AUTO_INCREMENT = 1");
+    
     // Create hierarchical test users with proper position values
     $users = [
-        ['admin', 'admin123', null, null, null, 'admin'],  // Root has no position
-        ['leader', 'pass123', 1, 1, 'left', 'user'],       // Level 1
-        ['child1', 'pass123', 2, 2, 'left', 'user'],       // Level 2
-        ['child2', 'pass123', 2, 2, 'right', 'user'],      // Level 2
-        ['grand1', 'pass123', 3, 3, 'left', 'user'],       // Level 3
-        ['grand2', 'pass123', 3, 3, 'right', 'user'],      // Level 3
-        ['great1', 'pass123', 5, 5, 'left', 'user'],       // Level 4
-        ['great2', 'pass123', 5, 5, 'right', 'user']       // Level 4
+        ['admin', 'admin123', null, null, null, 'admin'],  // ID: 1, Root has no position
+        ['leader', 'pass123', 1, 1, 'left', 'user'],       // ID: 2, Level 1
+        ['child1', 'pass123', 2, 2, 'left', 'user'],       // ID: 3, Level 2
+        ['child2', 'pass123', 2, 2, 'right', 'user'],      // ID: 4, Level 2
+        ['grand1', 'pass123', 3, 3, 'left', 'user'],       // ID: 5, Level 3 (child of child1)
+        ['grand2', 'pass123', 3, 3, 'right', 'user'],      // ID: 6, Level 3 (child of child1)
+        ['great1', 'pass123', 5, 5, 'left', 'user'],       // ID: 7, Level 4 (child of grand1)
+        ['great2', 'pass123', 5, 5, 'right', 'user']       // ID: 8, Level 4 (child of grand1)
     ];
     
     foreach ($users as $user) {
         $stmt = $pdo->prepare("
-            INSERT IGNORE INTO users (username, password, sponsor_id, upline_id, position, role) 
+            INSERT INTO users (username, password, sponsor_id, upline_id, position, role) 
             VALUES (?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
@@ -33,12 +39,26 @@ function setupTestData(PDO $pdo) {
         ]);
     }
     
-    // Ensure wallets exist
+    // Ensure wallets exist for all users
     for ($i = 1; $i <= 8; $i++) {
-        $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")->execute([$i]);
+        $pdo->prepare("INSERT INTO wallets (user_id, balance) VALUES (?, 0.00)")->execute([$i]);
     }
     
     echo "✅ Test data ready (8 users with proper hierarchy)<br>";
+    
+    // Show the hierarchy structure
+    echo "<br>👥 Created User Hierarchy:<br>";
+    $stmt = $pdo->query("
+        SELECT u.id, u.username, u.sponsor_id, u.upline_id, u.position
+        FROM users u 
+        ORDER BY u.id
+    ");
+    
+    foreach ($stmt->fetchAll() as $user) {
+        $sponsor = $user['sponsor_id'] ? "Sponsor:{$user['sponsor_id']}" : "Root";
+        $upline = $user['upline_id'] ? "Upline:{$user['upline_id']}" : "Root";
+        echo "├── {$user['username']} (ID:{$user['id']}) - {$sponsor}, {$upline}, Pos:{$user['position']}<br>";
+    }
 }
 
 // Test leadership bonus (ancestors earn when descendants get binary bonus)
@@ -58,7 +78,7 @@ function testLeadershipBonus(PDO $pdo) {
     echo "├── Child1 (user3) - Starter package<br>";
     echo "└── Child1 earns binary bonus → Admin & Leader get leadership bonus<br>";
     
-    // Assign packages to establish hierarchy
+    // Assign packages to establish hierarchy (these users definitely exist)
     $packages = [
         [1, 3, -100.00], // admin - Elite (100 USD - highest)
         [2, 2, -50.00],  // leader - Pro (50 USD)
@@ -67,7 +87,7 @@ function testLeadershipBonus(PDO $pdo) {
     
     foreach ($packages as $assign) {
         $pdo->prepare("
-            INSERT IGNORE INTO wallet_tx (user_id, package_id, type, amount) 
+            INSERT INTO wallet_tx (user_id, package_id, type, amount) 
             VALUES (?, ?, 'package', ?)
         ")->execute([$assign[0], $assign[1], $assign[2]]);
     }
@@ -146,7 +166,7 @@ function testLeadershipReverse(PDO $pdo) {
     echo "├── Child2 (user4) - Pro package<br>";
     echo "└── Leader earns binary bonus → Children get mentor bonus<br>";
     
-    // Assign packages
+    // Assign packages - using existing user IDs
     $packages = [
         [2, 1, -25.00],  // leader - Starter (25 USD)
         [3, 3, -100.00], // child1 - Elite (100 USD - highest)
@@ -155,7 +175,7 @@ function testLeadershipReverse(PDO $pdo) {
     
     foreach ($packages as $assign) {
         $pdo->prepare("
-            INSERT IGNORE INTO wallet_tx (user_id, package_id, type, amount) 
+            INSERT INTO wallet_tx (user_id, package_id, type, amount) 
             VALUES (?, ?, 'package', ?)
         ")->execute([$assign[0], $assign[1], $assign[2]]);
     }
@@ -245,7 +265,7 @@ function testIntegratedSystem(PDO $pdo) {
     
     foreach ($packages as $assign) {
         $pdo->prepare("
-            INSERT IGNORE INTO wallet_tx (user_id, package_id, type, amount) 
+            INSERT INTO wallet_tx (user_id, package_id, type, amount) 
             VALUES (?, ?, 'package', ?)
         ")->execute([$assign[0], $assign[1], $assign[2]]);
     }
@@ -318,7 +338,7 @@ function showSystemState(PDO $pdo) {
                 WHERE wt.user_id = u.id AND wt.type='package'
                 ORDER BY wt.id DESC LIMIT 1) as package_name
         FROM users u 
-        WHERE u.role = 'user'
+        WHERE u.role = 'user' OR u.role = 'admin'
         ORDER BY u.id
     ");
     
@@ -371,24 +391,31 @@ function showSystemState(PDO $pdo) {
 }
 
 // Run all tests
-setupTestData($pdo);
-showSystemState($pdo);
-testLeadershipBonus($pdo);
-testLeadershipReverse($pdo);
-testIntegratedSystem($pdo);
+try {
+    setupTestData($pdo);
+    showSystemState($pdo);
+    testLeadershipBonus($pdo);
+    testLeadershipReverse($pdo);
+    testIntegratedSystem($pdo);
 
-// Manual testing guidance
-echo "<br>💡 Manual Testing Guide:<br>";
-echo "========================<br>";
-echo "1. Leadership Bonus: When a user earns binary bonus, their ANCESTORS get leadership bonus<br>";
-echo "   - Bonus rate depends on ANCESTOR'S package level<br>";
-echo "   - Requirements (PVT/GVT) must be met by ANCESTOR<br>";
-echo "<br>";
-echo "2. Mentor Bonus: When a user earns binary bonus, their DESCENDANTS get mentor bonus<br>";
-echo "   - Bonus rate depends on DESCENDANT'S package level<br>";
-echo "   - Requirements (PVT/GVT) must be met by DESCENDANT<br>";
-echo "<br>";
-echo "3. Both systems can work simultaneously for the same binary bonus event<br>";
-echo "4. Check wallet balances and transaction logs for verification<br>";
+    // Manual testing guidance
+    echo "<br>💡 Manual Testing Guide:<br>";
+    echo "========================<br>";
+    echo "1. Leadership Bonus: When a user earns binary bonus, their ANCESTORS get leadership bonus<br>";
+    echo "   - Bonus rate depends on ANCESTOR'S package level<br>";
+    echo "   - Requirements (PVT/GVT) must be met by ANCESTOR<br>";
+    echo "<br>";
+    echo "2. Mentor Bonus: When a user earns binary bonus, their DESCENDANTS get mentor bonus<br>";
+    echo "   - Bonus rate depends on DESCENDANT'S package level<br>";
+    echo "   - Requirements (PVT/GVT) must be met by DESCENDANT<br>";
+    echo "<br>";
+    echo "3. Both systems can work simultaneously for the same binary bonus event<br>";
+    echo "4. Check wallet balances and transaction logs for verification<br>";
+
+} catch (Exception $e) {
+    echo "<br>❌ Error occurred: " . $e->getMessage() . "<br>";
+    echo "Line: " . $e->getLine() . " in " . $e->getFile() . "<br>";
+    echo "<br>Stack trace:<br><pre>" . $e->getTraceAsString() . "</pre>";
+}
 
 ?>
