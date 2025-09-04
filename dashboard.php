@@ -47,6 +47,7 @@ $allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wa
 
 if ($role === 'admin') {
     $allowed_pages[] = 'users'; // Add users page for admins
+    $allowed_pages[] = 'export_users'; // Export users page for admins
     $allowed_pages[] = 'settings'; // Add settings page for admins
     $allowed_pages[] = 'manage_products'; // Add manage products for admins
 }

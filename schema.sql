@@ -313,3 +313,17 @@ VALUES
 ('Digital Course – Starter', 29.99, 'https://cdn.example.com/course-starter.jpg', 'Beginner-friendly video course', 'Complete step-by-step videos to get you started in under 2 hours.', 10, 20),
 ('E-book – Pro Guide', 19.99, 'https://cdn.example.com/ebook-pro.jpg', 'Advanced strategies PDF', '150-page guide with case studies, templates and checklists.', 15, 25),
 ('Live Workshop Pass', 49.99, 'https://cdn.example.com/workshop.jpg', 'Interactive online session', 'Join a 3-hour live workshop with Q&A and worksheets.', 5, 30);
+
+-- Add admin_logs table to track administrative actions
+CREATE TABLE IF NOT EXISTS admin_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    details TEXT NULL,
+    ip_address VARCHAR(45) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_admin_id (admin_id),
+    INDEX idx_action (action),
+    INDEX idx_created_at (created_at)
+);
