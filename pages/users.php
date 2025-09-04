@@ -480,7 +480,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                 <button onclick="window.print()" class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                     Print
                 </button>
-                <a href="dashboard.php?page=export_users&<?= http_build_query(array_filter(['q' => $search, 'role' => $roleFilter, 'position' => $positionFilter])) ?>" 
+                <a href="export_users.php?<?= http_build_query(array_filter(['q' => $search, 'role' => $roleFilter, 'position' => $positionFilter])) ?>" 
                    class="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
                     Export CSV
                 </a>
