@@ -197,9 +197,9 @@ try {
 try {
     $rolesStmt = $pdo->query("SELECT DISTINCT role FROM users WHERE role IS NOT NULL ORDER BY role");
     $availableRoles = $rolesStmt->fetchAll(PDO::FETCH_COLUMN);
-    
-    $statusesStmt = $pdo->query("SELECT DISTINCT status FROM users WHERE status IS NOT NULL ORDER BY status");
-    $availableStatuses = $statusesStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    // ALWAYS show every possible status
+    $availableStatuses = ['active', 'inactive', 'suspended'];
 } catch (PDOException $e) {
     error_log("Filter options fetch error: " . $e->getMessage());
     $availableRoles = ['user', 'admin']; // Fallback values
