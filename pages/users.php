@@ -1,5 +1,5 @@
 <?php
-// pages/users.php - Admin-only user monitoring with enhanced pagination, search, and print
+// pages/users.php - Admin-only user monitoring with enhanced pagination, search, god mode, and suspend actions
 require_once 'config.php';
 require_once 'functions.php';
 
@@ -25,6 +25,54 @@ try {
     redirect('dashboard.php', 'Database error');
 }
 
+// Handle suspend/unsuspend actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    // CSRF token validation
+    if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
+        $_SESSION['flash'] = 'Invalid CSRF token';
+        redirect('dashboard.php?page=users');
+    }
+    
+    $targetUserId = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
+    $action = $_POST['action'];
+    
+    if ($targetUserId > 0 && in_array($action, ['suspend', 'unsuspend'])) {
+        try {
+            // Get target user info
+            $stmt = $pdo->prepare("SELECT username, role, status FROM users WHERE id = ?");
+            $stmt->execute([$targetUserId]);
+            $targetUser = $stmt->fetch();
+            
+            if (!$targetUser) {
+                $_SESSION['flash'] = 'User not found';
+            } elseif ($targetUser['role'] === 'admin') {
+                $_SESSION['flash'] = 'Cannot suspend admin accounts';
+            } elseif ($targetUserId === $uid) {
+                $_SESSION['flash'] = 'Cannot suspend your own account';
+            } else {
+                // Perform the action
+                $newStatus = ($action === 'suspend') ? 'suspended' : 'active';
+                
+                $updateStmt = $pdo->prepare("UPDATE users SET status = ? WHERE id = ?");
+                $updateStmt->execute([$newStatus, $targetUserId]);
+                
+                // Log the action
+                $logStmt = $pdo->prepare("INSERT INTO admin_logs (admin_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+                $logDetails = "Admin suspended/unsuspended user {$targetUser['username']} (ID: $targetUserId) - Status changed to: $newStatus";
+                $logStmt->execute([$uid, 'user_status_change', $logDetails, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+                
+                $actionText = ($action === 'suspend') ? 'suspended' : 'reactivated';
+                $_SESSION['flash'] = "User {$targetUser['username']} has been {$actionText}";
+            }
+        } catch (PDOException $e) {
+            error_log("User status change error: " . $e->getMessage());
+            $_SESSION['flash'] = 'Error updating user status';
+        }
+    }
+    
+    redirect('dashboard.php?page=users');
+}
+
 // Pagination configuration with proper null coalescing
 $perPageOptions = [10, 25, 50, 100];
 $requestedPerPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
@@ -36,8 +84,8 @@ $offset = ($currentPage - 1) * $perPage;
 // Search and filters with proper null coalescing
 $search = isset($_GET['q']) ? trim($_GET['q']) : '';
 $roleFilter = isset($_GET['role']) ? trim($_GET['role']) : '';
-$positionFilter = isset($_GET['position']) ? trim($_GET['position']) : '';
-$sortBy = isset($_GET['sort']) && in_array($_GET['sort'], ['id', 'username', 'created_at', 'role']) ? $_GET['sort'] : 'id';
+$statusFilter = isset($_GET['status']) ? trim($_GET['status']) : '';
+$sortBy = isset($_GET['sort']) && in_array($_GET['sort'], ['id', 'username', 'created_at', 'role', 'status']) ? $_GET['sort'] : 'id';
 $sortOrder = isset($_GET['order']) && in_array($_GET['order'], ['asc', 'desc']) ? $_GET['order'] : 'asc';
 
 // Build WHERE clause
@@ -55,9 +103,9 @@ if ($roleFilter !== '') {
     $params[] = $roleFilter;
 }
 
-if ($positionFilter !== '') {
-    $whereClauses[] = 'u.position = ?';
-    $params[] = $positionFilter;
+if ($statusFilter !== '') {
+    $whereClauses[] = 'u.status = ?';
+    $params[] = $statusFilter;
 }
 
 $whereClause = !empty($whereClauses) ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
@@ -76,7 +124,7 @@ if ($currentPage > $totalPages) {
 }
 
 // Validate sort column to prevent SQL injection
-$validSortColumns = ['id', 'username', 'created_at', 'role', 'position'];
+$validSortColumns = ['id', 'username', 'created_at', 'role', 'status'];
 if (!in_array($sortBy, $validSortColumns)) {
     $sortBy = 'id';
 }
@@ -134,7 +182,7 @@ try {
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Reset filters if they caused the error
-        $search = $roleFilter = $positionFilter = '';
+        $search = $roleFilter = $statusFilter = '';
         $totalUsers = $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
         $totalPages = max(1, ceil($totalUsers / $perPage));
         
@@ -145,17 +193,17 @@ try {
     }
 }
 
-// Get available roles and positions for filters
+// Get available roles and statuses for filters
 try {
     $rolesStmt = $pdo->query("SELECT DISTINCT role FROM users WHERE role IS NOT NULL ORDER BY role");
     $availableRoles = $rolesStmt->fetchAll(PDO::FETCH_COLUMN);
     
-    $positionsStmt = $pdo->query("SELECT DISTINCT position FROM users WHERE position IS NOT NULL ORDER BY position");
-    $availablePositions = $positionsStmt->fetchAll(PDO::FETCH_COLUMN);
+    $statusesStmt = $pdo->query("SELECT DISTINCT status FROM users WHERE status IS NOT NULL ORDER BY status");
+    $availableStatuses = $statusesStmt->fetchAll(PDO::FETCH_COLUMN);
 } catch (PDOException $e) {
     error_log("Filter options fetch error: " . $e->getMessage());
     $availableRoles = ['user', 'admin']; // Fallback values
-    $availablePositions = ['left', 'right']; // Fallback values
+    $availableStatuses = ['active', 'inactive', 'suspended']; // Fallback values
 }
 
 // Helper function to generate sort URL
@@ -233,14 +281,14 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                 </select>
             </div>
             
-            <!-- Position Filter -->
+            <!-- Status Filter -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                <select name="position" class="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">All Positions</option>
-                    <?php foreach ($availablePositions as $p): ?>
-                        <option value="<?= htmlspecialchars($p) ?>" <?= $positionFilter === $p ? 'selected' : '' ?>>
-                            <?= htmlspecialchars(ucfirst($p ?? 'Root')) ?>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" class="border rounded-lg p-2 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Statuses</option>
+                    <?php foreach ($availableStatuses as $s): ?>
+                        <option value="<?= htmlspecialchars($s) ?>" <?= $statusFilter === $s ? 'selected' : '' ?>>
+                            <?= htmlspecialchars(ucfirst($s)) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -263,7 +311,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
             <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                 Apply Filters
             </button>
-            <?php if ($search !== '' || $roleFilter !== '' || $positionFilter !== ''): ?>
+            <?php if ($search !== '' || $roleFilter !== '' || $statusFilter !== ''): ?>
                 <a href="dashboard.php?page=users" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                     Clear All
                 </a>
@@ -305,7 +353,14 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                         <th class="p-3 text-left text-gray-600 font-medium">Sponsor</th>
                         <th class="p-3 text-left text-gray-600 font-medium">Upline</th>
                         <th class="p-3 text-left text-gray-600 font-medium">Position</th>
-                        <th class="p-3 text-left text-gray-600 font-medium">Status</th>
+                        <th class="p-3 text-left">
+                            <a href="<?= getSortUrl('status', $sortBy, $sortOrder) ?>" class="text-gray-600 hover:text-gray-900 font-medium flex items-center">
+                                Status
+                                <?php if ($sortBy === 'status'): ?>
+                                    <span class="ml-1"><?= $sortOrder === 'asc' ? '↑' : '↓' ?></span>
+                                <?php endif; ?>
+                            </a>
+                        </th>
                         <th class="p-3 text-left">
                             <a href="<?= getSortUrl('role', $sortBy, $sortOrder) ?>" class="text-gray-600 hover:text-gray-900 font-medium flex items-center">
                                 Role
@@ -322,6 +377,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                                 <?php endif; ?>
                             </a>
                         </th>
+                        <th class="p-3 text-left text-gray-600 font-medium">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -367,6 +423,63 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                                 <?= date('M j, Y', strtotime($u['created_at'])) ?>
                                 <div class="text-xs text-gray-400">
                                     <?= date('g:i A', strtotime($u['created_at'])) ?>
+                                </div>
+                            </td>
+                            <td class="p-3">
+                                <div class="flex items-center space-x-2">
+                                    <!-- God Mode Eye Icon -->
+                                    <?php if ($u['role'] !== 'admin' && $u['id'] !== $uid): ?>
+                                        <form method="post" action="god_mode.php" class="inline">
+                                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                                            <input type="hidden" name="action" value="god_mode_access">
+                                            <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                            <input type="hidden" name="preserve_params" value="<?= htmlspecialchars(http_build_query($_GET)) ?>">
+                                            <button type="submit" 
+                                                    title="View user dashboard (God Mode)"
+                                                    class="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="text-gray-300 p-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                                            </svg>
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <!-- Suspend/Unsuspend Toggle -->
+                                    <?php if ($u['role'] !== 'admin' && $u['id'] !== $uid): ?>
+                                        <form method="post" class="inline" onsubmit="return confirmAction(this, '<?= htmlspecialchars($u['username']) ?>', '<?= ($u['status'] ?? 'active') === 'suspended' ? 'reactivate' : 'suspend' ?>')">
+                                            <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
+                                            <input type="hidden" name="action" value="<?= ($u['status'] ?? 'active') === 'suspended' ? 'unsuspend' : 'suspend' ?>">
+                                            <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                            <button type="submit" 
+                                                    title="<?= ($u['status'] ?? 'active') === 'suspended' ? 'Reactivate user' : 'Suspend user' ?>"
+                                                    class="<?= ($u['status'] ?? 'active') === 'suspended' ? 'text-green-600 hover:text-green-800 hover:bg-green-50' : 'text-red-600 hover:text-red-800 hover:bg-red-50' ?> p-1 rounded-full transition-colors">
+                                                <?php if (($u['status'] ?? 'active') === 'suspended'): ?>
+                                                    <!-- Unlock Icon -->
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>
+                                                    </svg>
+                                                <?php else: ?>
+                                                    <!-- Lock Icon -->
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                                    </svg>
+                                                <?php endif; ?>
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="text-gray-300 p-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+                                            </svg>
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -450,7 +563,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                             <input type="hidden" name="page" value="users">
                             <input type="hidden" name="q" value="<?= htmlspecialchars($search) ?>">
                             <input type="hidden" name="role" value="<?= htmlspecialchars($roleFilter) ?>">
-                            <input type="hidden" name="position" value="<?= htmlspecialchars($positionFilter) ?>">
+                            <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
                             <input type="hidden" name="per_page" value="<?= $perPage ?>">
                             <input type="hidden" name="sort" value="<?= htmlspecialchars($sortBy) ?>">
                             <input type="hidden" name="order" value="<?= htmlspecialchars($sortOrder) ?>">
@@ -469,7 +582,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
         <!-- Export Options -->
         <div class="mt-4 pt-4 border-t flex justify-between items-center">
             <div class="text-sm text-gray-500">
-                <?php if ($search !== '' || $roleFilter !== '' || $positionFilter !== ''): ?>
+                <?php if ($search !== '' || $roleFilter !== '' || $statusFilter !== ''): ?>
                     Filtered results
                 <?php else: ?>
                     All users
@@ -480,7 +593,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
                 <button onclick="printTable()" class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
                     Print Table
                 </button>
-                <a href="export_users.php?<?= http_build_query(array_filter(['q' => $search, 'role' => $roleFilter, 'position' => $positionFilter])) ?>" 
+                <a href="export_users.php?<?= http_build_query(array_filter(['q' => $search, 'role' => $roleFilter, 'status' => $statusFilter])) ?>" 
                    class="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
                     Export CSV
                 </a>
@@ -499,7 +612,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
     .print-content { position: absolute; top: 0; left: 0; width: 100%; }
     
     /* Hide non-essential elements */
-    .no-print, nav, .pagination, button, .export-options { display: none !important; }
+    .no-print, nav, .pagination, button, .export-options, .actions-column { display: none !important; }
     
     /* Table styling for print */
     table { font-size: 11px; width: 100%; border-collapse: collapse; }
@@ -515,6 +628,17 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
 </style>
 
 <script>
+function confirmAction(form, username, action) {
+    const actionText = action === 'suspend' ? 'suspend' : 'reactivate';
+    const message = `Are you sure you want to ${actionText} user "${username}"?`;
+    
+    if (action === 'suspend') {
+        return confirm(message + '\n\nThis will prevent them from logging in until reactivated.');
+    } else {
+        return confirm(message + '\n\nThis will allow them to log in again.');
+    }
+}
+
 function printTable() {
     // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
@@ -522,21 +646,29 @@ function printTable() {
     // Get current filters for the header
     const search = '<?= addslashes($search) ?>';
     const roleFilter = '<?= addslashes($roleFilter) ?>';
-    const positionFilter = '<?= addslashes($positionFilter) ?>';
+    const statusFilter = '<?= addslashes($statusFilter) ?>';
     
     // Build filter info
     let filterInfo = '';
-    if (search || roleFilter || positionFilter) {
+    if (search || roleFilter || statusFilter) {
         filterInfo = '<p><strong>Filters Applied:</strong> ';
         const filters = [];
         if (search) filters.push(`Search: "${search}"`);
         if (roleFilter) filters.push(`Role: ${roleFilter}`);
-        if (positionFilter) filters.push(`Position: ${positionFilter}`);
+        if (statusFilter) filters.push(`Status: ${statusFilter}`);
         filterInfo += filters.join(', ') + '</p>';
     }
     
-    // Get the table HTML
-    const tableHtml = document.querySelector('#users-table').innerHTML;
+    // Get the table HTML and remove Actions column
+    const table = document.querySelector('#users-table table').cloneNode(true);
+    // Remove Actions column header
+    const actionHeader = table.querySelector('thead th:last-child');
+    if (actionHeader) actionHeader.remove();
+    // Remove Actions column cells
+    const actionCells = table.querySelectorAll('tbody td:last-child');
+    actionCells.forEach(cell => cell.remove());
+    
+    const tableHtml = table.outerHTML;
     
     // Create the print document
     const printContent = `
@@ -652,5 +784,112 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show hint briefly on page load
     setTimeout(() => hint.classList.add('opacity-75'), 1000);
     setTimeout(() => hint.classList.remove('opacity-75'), 5000);
+});
+
+// Add loading indicator for god mode forms
+document.addEventListener('DOMContentLoaded', function() {
+    const godModeForms = document.querySelectorAll('form[action="god_mode.php"]');
+    godModeForms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const button = form.querySelector('button');
+            const originalHtml = button.innerHTML;
+            button.innerHTML = `
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            `;
+            button.disabled = true;
+            
+            // Reset button after 3 seconds in case of error
+            setTimeout(() => {
+                button.innerHTML = originalHtml;
+                button.disabled = false;
+            }, 3000);
+        });
+    });
+});
+
+// Add tooltip functionality
+document.addEventListener('DOMContentLoaded', function() {
+    let currentTooltip = null;
+    
+    function showTooltip(element, text) {
+        // Remove existing tooltip
+        hideTooltip();
+        
+        const tooltip = document.createElement('div');
+        tooltip.className = 'fixed bg-gray-900 text-white text-xs px-2 py-1 rounded z-50 pointer-events-none whitespace-nowrap';
+        tooltip.textContent = text;
+        tooltip.style.opacity = '0';
+        tooltip.style.transition = 'opacity 0.2s';
+        document.body.appendChild(tooltip);
+        
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        // Position tooltip above element, centered
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.top - tooltipRect.height - 8;
+        
+        // Keep tooltip within viewport
+        if (left < 5) left = 5;
+        if (left + tooltipRect.width > window.innerWidth - 5) {
+            left = window.innerWidth - tooltipRect.width - 5;
+        }
+        if (top < 5) {
+            top = rect.bottom + 8; // Show below if no room above
+        }
+        
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.style.opacity = '1';
+        
+        currentTooltip = tooltip;
+    }
+    
+    function hideTooltip() {
+        if (currentTooltip) {
+            currentTooltip.remove();
+            currentTooltip = null;
+        }
+    }
+    
+    // Add tooltip to elements with title attribute
+    function addTooltipListeners() {
+        const tooltipElements = document.querySelectorAll('[title]');
+        tooltipElements.forEach(element => {
+            const originalTitle = element.getAttribute('title');
+            element.removeAttribute('title'); // Prevent default tooltip
+            element.setAttribute('data-tooltip-text', originalTitle);
+            
+            element.addEventListener('mouseenter', function() {
+                const text = this.getAttribute('data-tooltip-text');
+                if (text) {
+                    showTooltip(this, text);
+                }
+            });
+            
+            element.addEventListener('mouseleave', hideTooltip);
+        });
+    }
+    
+    // Initialize tooltips
+    addTooltipListeners();
+    
+    // Hide tooltip when scrolling or clicking elsewhere
+    window.addEventListener('scroll', hideTooltip);
+    document.addEventListener('click', hideTooltip);
+    
+    // Re-add tooltips for dynamically added elements
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                addTooltipListeners();
+            }
+        });
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
 });
 </script>
