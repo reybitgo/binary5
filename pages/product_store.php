@@ -1,17 +1,9 @@
 <?php
 // pages/product_store.php
 // Use session affiliate ID and product ID if URL doesn't have them
+require_once 'functions.php';
 $aff = (int) ($_GET['aff'] ?? $_SESSION['aff'] ?? 0);
 $product_id = (int) ($_GET['id'] ?? $_SESSION['product_id'] ?? 0);      // optional deep-link product
-
-function getUsernameById($userId, $pdo)
-{
-    if (!$userId) return '';
-    $stmt = $pdo->prepare('SELECT username FROM users WHERE id = ?');
-    $stmt->execute([$userId]);
-    $row = $stmt->fetch();
-    return $row ? $row['username'] : 'Unknown';
-}
 
 $products = $pdo->query('SELECT * FROM products WHERE active = 1 ORDER BY id DESC')->fetchAll();
 foreach ($products as &$p) {
