@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Join Rixile's innovative bonus system to earn rewards through referrals, binary pairs, and more. Start your financial journey today!">
-    <title>Rixile - Unlock Your Financial Potential</title>
+    <meta name="description" content="Shoppe Club – the world’s first Buy-&-Build marketplace. Shop daily essentials, earn up to 30 % crypto-cashback, and auto-grow a binary-powered affiliate tree.">
+    <title>Shoppe Club – Shopping is the New Mining</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
@@ -747,328 +747,302 @@
         }
     </style>
 </head>
+
 <body>
-    <!-- Navigation -->
-    <nav class="navbar" id="navbar">
-        <div class="nav-container">
-            <a href="#" class="logo">Rixile</a>
-            <ul class="nav-links">
-                <li><a href="#home">Home</a></li>
-                <li><a href="#features">Features</a></li>
-                <li><a href="#how-it-works">How It Works</a></li>
-                <li><a href="#benefits">Benefits</a></li>
-            </ul>
-            <div class="nav-auth">
-                <a href="login.php" class="nav-login">Login</a>
-                <a href="register.php" class="nav-register">Register</a>
-            </div>
-            <button class="mobile-menu">
-                <i class="fas fa-bars"></i>
-            </button>
+<!-- ============ NAVBAR (only text + logo changed) ============ -->
+<nav class="navbar" id="navbar">
+    <div class="nav-container">
+        <a href="#" class="logo">Shoppe Club</a>
+        <ul class="nav-links">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#benefits">Benefits</a></li>
+        </ul>
+        <div class="nav-auth">
+            <a href="login.php" class="nav-login">Login</a>
+            <a href="register.php" class="nav-register">Register</a>
         </div>
-    </nav>
+        <button class="mobile-menu"><i class="fas fa-bars"></i></button>
+    </div>
+</nav>
 
-    <!-- Return to Top Button -->
-    <button class="back-to-top" id="backToTop">
-        <i class="fas fa-arrow-up"></i>
-    </button>
+<!-- ======= BACK-TO-TOP (unchanged behaviour) ======= -->
+<button class="back-to-top" id="backToTop"><i class="fas fa-arrow-up"></i></button>
 
-    <!-- Hero Section -->
-    <section class="hero" id="home">
-        <div class="hero-container">
-            <div class="hero-content">
-                <h1>Unlock Your Financial Potential</h1>
-                <p>Join Rixile's innovative bonus system and start earning rewards through referrals, binary pairs, and matched bonuses. Build your wealth with confidence.</p>
-                <div class="hero-cta">
-                    <a href="register.php" class="btn btn-primary">
-                        <i class="fas fa-rocket"></i>
-                        Get Started Now
-                    </a>
-                    <a href="#how-it-works" class="btn btn-secondary">
-                        <i class="fas fa-play"></i>
-                        Learn More
-                    </a>
-                </div>
+<!-- ================= HERO SECTION ================= -->
+<section class="hero" id="home">
+    <div class="hero-container">
+        <div class="hero-content">
+            <h1>Shopping is the New Mining</h1>
+            <p>Buy groceries, skincare, NFTs, phone top-ups—every $1 spent becomes PV that climbs your binary tree and pays you while you sleep.</p>
+            <div class="hero-cta">
+                <a href="register.php" class="btn btn-primary"><i class="fas fa-rocket"></i>Start My Club</a>
+                <a href="#how-it-works" class="btn btn-secondary"><i class="fas fa-play"></i>See How</a>
             </div>
-            <div class="hero-visual">
-                <div class="floating-cards">
-                    <div class="floating-card">
-                        <i class="fas fa-hand-holding-dollar"></i>
-                        <h4>10% Referral Bonus</h4>
-                        <p>Instant rewards</p>
-                    </div>
-                    <div class="floating-card">
-                        <i class="fas fa-sitemap"></i>
-                        <h4>20% Binary Bonus</h4>
-                        <p>Per matched pair</p>
-                    </div>
-                    <div class="floating-card">
-                        <i class="fas fa-trophy"></i>
-                        <h4>Matched Rewards</h4>
-                        <p>Unlimited potential</p>
-                    </div>
+        </div>
+
+        <!-- new floating cards -->
+        <div class="hero-visual">
+            <div class="floating-cards">
+                <div class="floating-card">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <h4>30 % Crypto-Cashback</h4>
+                    <p>On every cart</p>
+                </div>
+                <div class="floating-card">
+                    <i class="fa-solid fa-sitemap"></i>
+                    <h4>Binary Bonus</h4>
+                    <p>20 % per pair</p>
+                </div>
+                <div class="floating-card">
+                    <i class="fa-solid fa-gift"></i>
+                    <h4>Leadership & Mentor</h4>
+                    <p>5-level deep</p>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
-        <div class="container">
-            <div class="section-header">
-                <h2>Why Choose Rixile?</h2>
-                <p>Experience a revolutionary bonus system designed to maximize your earning potential through multiple income streams.</p>
+<!-- ================= FEATURES ================= -->
+<section class="features" id="features">
+    <div class="container">
+        <div class="section-header">
+            <h2>Why Shoppe Club?</h2>
+            <p>One cart, three income streams, zero extra effort—built for the creator economy & Web3 reality.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon"><i class="fa-solid fa-bag-shopping"></i></div>
+                <h3>Shop & Earn PV</h3>
+                <p>Every $1 = 1 PV. PV flows up your binary legs, triggering daily pairs and cashback—no mining rigs, no coupons to clip.</p>
             </div>
-            <div class="features-grid">
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">
-                        <i class="fas fa-hand-holding-dollar"></i>
-                    </div>
-                    <h3>Referral Bonus</h3>
-                    <p>Earn 10% instantly on every package purchased by your direct referrals. Build your network and watch your income grow automatically.</p>
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon"><i class="fa-solid fa-link"></i></div>
+                <h3>Link-in-Bio Franchise</h3>
+                <p>Drop your unique .club handle on TikTok, IG, Discord. Friends shop → you earn 10 % referral + binary pairs instantly.</p>
+            </div>
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                <h3>Real-Time Dashboard</h3>
+                <p>Track cashback, pairs, leadership & mentor flows live. One-click swap earnings to USDT, USD, or store credit.</p>
+            </div>
+            <div class="feature-card animate-on-scroll">
+                <div class="feature-icon"><i class="fa-solid fa-leaf"></i></div>
+                <h3>Carbon-Neutral Cart</h3>
+                <p>1 % of every order funds DAO-voted eco-suppliers. Shop responsibly without lifting a finger.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="how-it-works" id="how-it-works">
+    <div class="container">
+        <div class="section-header">
+            <h2>How It Works</h2>
+            <p>From checkout to cash-out in 3 Lego-style steps—no webinars, no spreadsheets.</p>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card animate-on-scroll">
+                <div class="step-number">1</div>
+                <h3>Join Free, Grab Your Handle</h3>
+                <p>Pick a sponsor (or let TikTok auto-assign). Get <code>yourname.club</code>—your forever store URL.</p>
+            </div>
+            <div class="step-card animate-on-scroll">
+                <div class="step-number">2</div>
+                <h3>Shop or Share—Both Count</h3>
+                <p>Buy groceries OR share your link. Either action drops PV into your binary buckets and fires 10 % referral to your sponsor.</p>
+            </div>
+            <div class="step-card animate-on-scroll">
+                <div class="step-number">3</div>
+                <h3>Wake Up to Earnings</h3>
+                <p>AI matches left/right legs at 00:00 UTC, pays 20 % per pair, tops up cashback, and flushes the rest to tomorrow—automatically.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= BENEFITS ================= -->
+<section class="benefits" id="benefits">
+    <div class="container">
+        <div class="section-header">
+            <h2>Grow Your Wealth with Confidence</h2>
+            <p>Built on battle-tested Rixile mechanics, wrapped in a 2025-ready ecommerce shell.</p>
+        </div>
+        <div class="benefits-grid">
+            <div class="benefit-item animate-on-scroll">
+                <div class="benefit-icon"><i class="fas fa-shield-alt"></i></div>
+                <div>
+                    <h4>SAFU by Design</h4>
+                    <p>Shopify checkout + Fireblocks custody + on-chain BSC hashes for every bonus. Your cart is safer than your bank.</p>
                 </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">
-                        <i class="fas fa-sitemap"></i>
-                    </div>
-                    <h3>Binary Bonus</h3>
-                    <p>Build two legs and earn 20% per matched pair, with the potential to earn from up to 10 pairs daily. Maximize your binary structure.</p>
+            </div>
+            <div class="benefit-item animate-on-scroll">
+                <div class="benefit-icon"><i class="fas fa-rocket"></i></div>
+                <div>
+                    <h4>Instant Liquidity</h4>
+                    <p>Cash out USDT to Apple Pay, Google Pay, or bank card in < 30 seconds—no minimums, no stags.</p>
                 </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">
-                        <i class="fas fa-trophy"></i>
-                    </div>
-                    <h3>Matched Bonus</h3>
-                    <p>Get rewarded from your downline's pairs based on your PVT and GVT. Lead your team to success and earn matched rewards.</p>
+            </div>
+            <div class="benefit-item animate-on-scroll">
+                <div class="benefit-icon"><i class="fas fa-chart-line"></i></div>
+                <div>
+                    <h4>Bear-Market Proof</h4>
+                    <p>Cashback is USDT-denominated. If crypto crashes, flip payout to USD or store credit—your choice, every order.</p>
                 </div>
-                <div class="feature-card animate-on-scroll">
-                    <div class="feature-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h3>Mentor Bonus</h3>
-                    <p>Share earnings with your downline to foster growth and create a thriving community. Success is better when shared.</p>
+            </div>
+            <div class="benefit-item animate-on-scroll">
+                <div class="benefit-icon"><i class="fas fa-headset"></i></div>
+                <div>
+                    <h4>24/7 Support & DAO</h4>
+                    <p>Live chat + Discord DAO votes on new product lines. Next up: lab-grown coffee—members decide.</p>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- How It Works Section -->
-    <section class="how-it-works" id="how-it-works">
-        <div class="container">
-            <div class="section-header">
-                <h2>How It Works</h2>
-                <p>Start your journey with Rixile in three simple steps and begin earning rewards immediately.</p>
+<!-- ================= CTA ================= -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content">
+            <h2>Ready to Turn Receipts into Revenue?</h2>
+            <p>Join the wait-list, get 100 PV airdrop + lifetime 0 % marketplace fees. Your first cashback hit lands in 60 seconds.</p>
+            <a href="register.php" class="btn btn-primary"><i class="fas fa-star"></i>Join Shoppe Club Now</a>
+        </div>
+    </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+    <div class="container">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Shoppe Club</h3>
+                <p>Shopping is the new mining. Turn every cart into a mini-franchise—secure, transparent, eco-forward.</p>
             </div>
-            <div class="steps-grid">
-                <div class="step-card animate-on-scroll">
-                    <div class="step-number">1</div>
-                    <h3>Join for Free</h3>
-                    <p>Sign up with Rixile, choose your sponsor, and select your binary placement position. Registration is completely free and takes just minutes.</p>
-                </div>
-                <div class="step-card animate-on-scroll">
-                    <div class="step-number">2</div>
-                    <h3>Purchase a Package</h3>
-                    <p>Choose from our available packages to activate your account. Your sponsor immediately receives a 10% referral bonus when you make your first purchase.</p>
-                </div>
-                <div class="step-card animate-on-scroll">
-                    <div class="step-number">3</div>
-                    <h3>Start Earning</h3>
-                    <p>Build your network, earn from multiple bonus systems, and manage your USDT earnings through our secure wallet system.</p>
-                </div>
+            <div class="footer-section">
+                <h3>Explore</h3>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#how-it-works">How It Works</a></li>
+                    <li><a href="#benefits">Benefits</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Support</h3>
+                <ul>
+                    <li><a href="#faq">FAQ</a></li>
+                    <li><a href="#contact">Contact Us</a></li>
+                    <li><a href="#privacy">Privacy Policy</a></li>
+                    <li><a href="#terms">Terms of Service</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Account</h3>
+                <ul>
+                    <li><a href="login.php">Login</a></li>
+                    <li><a href="register.php">Register</a></li>
+                    <li><a href="dashboard.php">Dashboard</a></li>
+                </ul>
             </div>
         </div>
-    </section>
-
-    <!-- Benefits Section -->
-    <section class="benefits" id="benefits">
-        <div class="container">
-            <div class="section-header">
-                <h2>Grow Your Wealth with Confidence</h2>
-                <p>Rixile provides a secure, transparent platform with multiple earning opportunities and user-friendly tools.</p>
-            </div>
-            <div class="benefits-grid">
-                <div class="benefit-item animate-on-scroll">
-                    <div class="benefit-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
-                    <div>
-                        <h4>Secure Transactions</h4>
-                        <p>All transactions are secured with advanced encryption. Manage your USDT with complete confidence using our robust wallet system.</p>
-                    </div>
-                </div>
-                <div class="benefit-item animate-on-scroll">
-                    <div class="benefit-icon">
-                        <i class="fas fa-rocket"></i>
-                    </div>
-                    <div>
-                        <h4>Fast Rewards</h4>
-                        <p>Receive instant bonuses and transfer funds quickly. Our automated system ensures you get paid without delays.</p>
-                    </div>
-                </div>
-                <div class="benefit-item animate-on-scroll">
-                    <div class="benefit-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div>
-                        <h4>Real-time Analytics</h4>
-                        <p>Track your earnings, monitor your network growth, and analyze your performance with our comprehensive dashboard.</p>
-                    </div>
-                </div>
-                <div class="benefit-item animate-on-scroll">
-                    <div class="benefit-icon">
-                        <i class="fas fa-headset"></i>
-                    </div>
-                    <div>
-                        <h4>24/7 Support</h4>
-                        <p>Our dedicated support team is available around the clock to help you maximize your earning potential and resolve any issues.</p>
-                    </div>
-                </div>
-            </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 Shoppe Club. All Rights Reserved. Built on Rixile’s proven engine, re-imagined for ecommerce.</p>
         </div>
-    </section>
+    </div>
+</footer>
 
-    <!-- CTA Section -->
-    <section class="cta-section">
-        <div class="container">
-            <div class="cta-content">
-                <h2>Ready to Transform Your Financial Future?</h2>
-                <p>Join thousands of successful members who are already earning with Rixile's proven bonus system. Your journey to financial independence starts today.</p>
-                <a href="register.php" class="btn btn-primary">
-                    <i class="fas fa-star"></i>
-                    Join Rixile Now
-                </a>
-            </div>
-        </div>
-    </section>
+<script>
+	// Navbar scroll effect
+	window.addEventListener('scroll', function() {
+		const navbar = document.getElementById('navbar');
+		if (window.scrollY > 50) {
+			navbar.classList.add('scrolled');
+		} else {
+			navbar.classList.remove('scrolled');
+		}
+	});
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Rixile</h3>
-                    <p>Empowering individuals to achieve financial freedom through innovative bonus systems and community support.</p>
-                </div>
-                <div class="footer-section">
-                    <h3>Quick Links</h3>
-                    <ul>
-                        <li><a href="#home">Home</a></li>
-                        <li><a href="#features">Features</a></li>
-                        <li><a href="#how-it-works">How It Works</a></li>
-                        <li><a href="#benefits">Benefits</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h3>Support</h3>
-                    <ul>
-                        <li><a href="#faq">FAQ</a></li>
-                        <li><a href="#contact">Contact Us</a></li>
-                        <li><a href="#privacy">Privacy Policy</a></li>
-                        <li><a href="#terms">Terms of Service</a></li>
-                    </ul>
-                </div>
-                <div class="footer-section">
-                    <h3>Account</h3>
-                    <ul>
-                        <li><a href="login.php">Login</a></li>
-                        <li><a href="register.php">Register</a></li>
-                        <li><a href="dashboard.php">Dashboard</a></li>
-                    </ul>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 Rixile. All Rights Reserved. Built with passion for financial empowerment.</p>
-            </div>
-        </div>
-    </footer>
+	// Back to top button functionality
+	const backToTopBtn = document.getElementById('backToTop');
+	
+	window.addEventListener('scroll', function() {
+		if (window.pageYOffset > 300) {
+			backToTopBtn.classList.add('show');
+		} else {
+			backToTopBtn.classList.remove('show');
+		}
+	});
 
-    <script>
-        // Navbar scroll effect
-        window.addEventListener('scroll', function() {
-            const navbar = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
+	backToTopBtn.addEventListener('click', function() {
+		window.scrollTo({
+			top: 0,
+			behavior: 'smooth'
+		});
+	});
 
-        // Back to top button functionality
-        const backToTopBtn = document.getElementById('backToTop');
-        
-        window.addEventListener('scroll', function() {
-            if (window.pageYOffset > 300) {
-                backToTopBtn.classList.add('show');
-            } else {
-                backToTopBtn.classList.remove('show');
-            }
-        });
+	// Animate elements on scroll
+	const observerOptions = {
+		threshold: 0.1,
+		rootMargin: '0px 0px -50px 0px'
+	};
 
-        backToTopBtn.addEventListener('click', function() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
+	const observer = new IntersectionObserver(function(entries) {
+		entries.forEach(entry => {
+			if (entry.isIntersecting) {
+				entry.target.style.animationDelay = Math.random() * 0.3 + 's';
+				entry.target.classList.add('animate-on-scroll');
+				observer.unobserve(entry.target);
+			}
+		});
+	}, observerOptions);
 
-        // Animate elements on scroll
-        const observerOptions = {
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
-        };
+	document.querySelectorAll('.feature-card, .step-card, .benefit-item').forEach(el => {
+		observer.observe(el);
+	});
 
-        const observer = new IntersectionObserver(function(entries) {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.animationDelay = Math.random() * 0.3 + 's';
-                    entry.target.classList.add('animate-on-scroll');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, observerOptions);
+	// Smooth scroll for navigation links
+	document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+		anchor.addEventListener('click', function (e) {
+			e.preventDefault();
+			const target = document.querySelector(this.getAttribute('href'));
+			if (target) {
+				target.scrollIntoView({
+					behavior: 'smooth',
+					block: 'start'
+				});
+			}
+		});
+	});
 
-        document.querySelectorAll('.feature-card, .step-card, .benefit-item').forEach(el => {
-            observer.observe(el);
-        });
+	// Mobile menu toggle
+	document.querySelector('.mobile-menu').addEventListener('click', function() {
+		const navLinks = document.querySelector('.nav-links');
+		navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
+	});
 
-        // Smooth scroll for navigation links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
+	// Add parallax effect to hero section
+	window.addEventListener('scroll', function() {
+		const scrolled = window.pageYOffset;
+		const hero = document.querySelector('.hero');
+		const rate = scrolled * -0.5;
+		hero.style.transform = `translateY(${rate}px)`;
+	});
 
-        // Mobile menu toggle
-        document.querySelector('.mobile-menu').addEventListener('click', function() {
-            const navLinks = document.querySelector('.nav-links');
-            navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
-        });
+	// Add loading animation
+	window.addEventListener('load', function() {
+		document.body.classList.add('loaded');
+	});
 
-        // Add parallax effect to hero section
-        window.addEventListener('scroll', function() {
-            const scrolled = window.pageYOffset;
-            const hero = document.querySelector('.hero');
-            const rate = scrolled * -0.5;
-            hero.style.transform = `translateY(${rate}px)`;
-        });
-
-        // Add loading animation
-        window.addEventListener('load', function() {
-            document.body.classList.add('loaded');
-        });
-
-        // Mobile menu toggle functionality
-        document.querySelector('.mobile-menu').addEventListener('click', function() {
-            const navLinks = document.querySelector('.nav-links');
-            navLinks.classList.toggle('show');
-        });
-    </script>
+	// Mobile menu toggle functionality
+	document.querySelector('.mobile-menu').addEventListener('click', function() {
+		const navLinks = document.querySelector('.nav-links');
+		navLinks.classList.toggle('show');
+	});
+</script>
 </body>
 </html>
