@@ -1,0 +1,158 @@
+Setting up final test data to guarantee all bonus types...
+Test data ready: 15 users, minimal requirements for all bonuses
+
+User Hierarchy:
+-- admin (ID:1) - Root, Root, Pos:
+-- sponsor1 (ID:2) - Sponsor:1, Upline:1, Pos:left
+-- sponsor2 (ID:3) - Sponsor:1, Upline:1, Pos:right
+-- buyer1 (ID:4) - Sponsor:2, Upline:2, Pos:left
+-- buyer2 (ID:5) - Sponsor:2, Upline:2, Pos:right
+-- buyer3 (ID:6) - Sponsor:3, Upline:3, Pos:left
+-- buyer4 (ID:7) - Sponsor:3, Upline:3, Pos:right
+-- deep1 (ID:8) - Sponsor:4, Upline:4, Pos:left
+-- deep2 (ID:9) - Sponsor:4, Upline:4, Pos:right
+-- deep3 (ID:10) - Sponsor:5, Upline:5, Pos:left
+-- deep4 (ID:11) - Sponsor:5, Upline:5, Pos:right
+-- deep5 (ID:12) - Sponsor:6, Upline:6, Pos:left
+-- deep6 (ID:13) - Sponsor:6, Upline:6, Pos:right
+-- deep7 (ID:14) - Sponsor:7, Upline:7, Pos:left
+-- deep8 (ID:15) - Sponsor:7, Upline:7, Pos:right
+
+Testing Guaranteed All Bonus Types Scenario
+==========================================
+
+Phase 1: Build descendant qualification FIRST (critical for mentor bonuses)...
+sponsor1 (ID:2) bought package 2 (PV: 50, Price: $50.00)
+sponsor2 (ID:3) bought package 2 (PV: 50, Price: $50.00)
+buyer1 (ID:4) bought package 2 (PV: 50, Price: $50.00)
+buyer2 (ID:5) bought package 2 (PV: 50, Price: $50.00)
+buyer3 (ID:6) bought package 2 (PV: 50, Price: $50.00)
+buyer4 (ID:7) bought package 2 (PV: 50, Price: $50.00)
+deep1 (ID:8) bought package 1 (PV: 25, Price: $25.00)
+deep2 (ID:9) bought package 1 (PV: 25, Price: $25.00)
+deep3 (ID:10) bought package 1 (PV: 25, Price: $25.00)
+deep4 (ID:11) bought package 1 (PV: 25, Price: $25.00)
+deep5 (ID:12) bought package 1 (PV: 25, Price: $25.00)
+deep6 (ID:13) bought package 1 (PV: 25, Price: $25.00)
+deep7 (ID:14) bought package 1 (PV: 25, Price: $25.00)
+deep8 (ID:15) bought package 1 (PV: 25, Price: $25.00)
+
+Checking descendant volumes after Phase 1:
+sponsor1 (ID:2): PVT=$50, GVT=$250
+sponsor2 (ID:3): PVT=$50, GVT=$250
+buyer1 (ID:4): PVT=$50, GVT=$100
+buyer2 (ID:5): PVT=$50, GVT=$100
+buyer3 (ID:6): PVT=$50, GVT=$100
+buyer4 (ID:7): PVT=$50, GVT=$100
+deep1 (ID:8): PVT=$25, GVT=$25
+deep2 (ID:9): PVT=$25, GVT=$25
+deep3 (ID:10): PVT=$25, GVT=$25
+deep4 (ID:11): PVT=$25, GVT=$25
+deep5 (ID:12): PVT=$25, GVT=$25
+deep6 (ID:13): PVT=$25, GVT=$25
+deep7 (ID:14): PVT=$25, GVT=$25
+deep8 (ID:15): PVT=$25, GVT=$25
+
+Phase 2: Build admin qualification and trigger binary cascade...
+admin (ID:1) bought package 3 (PV: 100, Price: $100.00)
+admin (ID:1) bought package 3 (PV: 100, Price: $100.00)
+
+Phase 3: Trigger binary bonuses to activate mentor bonuses...
+deep1 (ID:8) bought package 1 (PV: 25, Price: $25.00)
+deep5 (ID:12) bought package 1 (PV: 25, Price: $25.00)
+deep2 (ID:9) bought package 1 (PV: 25, Price: $25.00)
+deep6 (ID:13) bought package 1 (PV: 25, Price: $25.00)
+
+Phase 4: More purchases to ensure all users get binary bonuses...
+deep3 (ID:10) bought package 1 (PV: 25, Price: $25.00)
+deep7 (ID:14) bought package 1 (PV: 25, Price: $25.00)
+deep4 (ID:11) bought package 1 (PV: 25, Price: $25.00)
+deep8 (ID:15) bought package 1 (PV: 25, Price: $25.00)
+
+Phase 5: Final purchases to maximize all bonus triggering...
+buyer1 (ID:4) bought package 1 (PV: 25, Price: $25.00)
+buyer3 (ID:6) bought package 1 (PV: 25, Price: $25.00)
+buyer2 (ID:5) bought package 1 (PV: 25, Price: $25.00)
+buyer4 (ID:7) bought package 1 (PV: 25, Price: $25.00)
+
+FINAL RESULTS - All Bonus Types Analysis
+========================================
+
+User Bonus Summary:
+-- admin (ID:1) - Balance: $9,841.20
+   Bonuses: Referral, Binary, Leadership
+   Totals: Ref:$10.00 | Bin:$30.00 | Lead:$1.20 | Mentor:$0.00
+-- sponsor1 (ID:2) - Balance: $9,987.10
+   Bonuses: Referral, Binary, Leadership, Mentor
+   Totals: Ref:$15.00 | Bin:$20.00 | Lead:$1.20 | Mentor:$0.90
+-- sponsor2 (ID:3) - Balance: $9,987.10
+   Bonuses: Referral, Binary, Leadership, Mentor
+   Totals: Ref:$15.00 | Bin:$20.00 | Lead:$1.20 | Mentor:$0.90
+-- buyer1 (ID:4) - Balance: $9,946.10
+   Bonuses: Referral, Binary, Mentor
+   Totals: Ref:$10.00 | Bin:$10.00 | Lead:$0.00 | Mentor:$1.10
+-- buyer2 (ID:5) - Balance: $9,946.10
+   Bonuses: Referral, Binary, Mentor
+   Totals: Ref:$10.00 | Bin:$10.00 | Lead:$0.00 | Mentor:$1.10
+-- buyer3 (ID:6) - Balance: $9,946.10
+   Bonuses: Referral, Binary, Mentor
+   Totals: Ref:$10.00 | Bin:$10.00 | Lead:$0.00 | Mentor:$1.10
+-- buyer4 (ID:7) - Balance: $9,945.85
+   Bonuses: Referral, Binary, Mentor
+   Totals: Ref:$10.00 | Bin:$10.00 | Lead:$0.00 | Mentor:$0.85
+-- deep1 (ID:8) - Balance: $9,950.38
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.38
+-- deep2 (ID:9) - Balance: $9,950.38
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.38
+-- deep3 (ID:10) - Balance: $9,950.38
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.38
+-- deep4 (ID:11) - Balance: $9,950.29
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.29
+-- deep5 (ID:12) - Balance: $9,950.38
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.38
+-- deep6 (ID:13) - Balance: $9,950.38
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.38
+-- deep7 (ID:14) - Balance: $9,950.38
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.38
+-- deep8 (ID:15) - Balance: $9,950.29
+   Bonuses: Mentor
+   Totals: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.29
+
+Bonus Type Distribution:
+-- Referral bonuses: 7 users
+-- Binary bonuses: 7 users
+-- Leadership bonuses: 3 users
+-- Mentor bonuses: 14 users
+
+USERS WITH ALL FOUR BONUS TYPES:
+-- SUCCESS: sponsor1 (ID:2) earned ALL FOUR bonus types!
+   Final Balance: $9,987.10
+   Referral: $15.00 (4 payments)
+   Binary: $20.00 (3 payments)
+   Leadership: $1.20 (4 payments)
+   Mentor: $0.90 (3 payments)
+-- SUCCESS: sponsor2 (ID:3) earned ALL FOUR bonus types!
+   Final Balance: $9,987.10
+   Referral: $15.00 (4 payments)
+   Binary: $20.00 (3 payments)
+   Leadership: $1.20 (4 payments)
+   Mentor: $0.90 (3 payments)
+
+Final Volume Summary:
+-- admin (ID:1): PVT=$200, GVT=$1000
+-- sponsor1 (ID:2): PVT=$50, GVT=$400
+-- sponsor2 (ID:3): PVT=$50, GVT=$400
+-- buyer1 (ID:4): PVT=$75, GVT=$175
+-- buyer2 (ID:5): PVT=$75, GVT=$175
+-- buyer3 (ID:6): PVT=$75, GVT=$175
+-- buyer4 (ID:7): PVT=$75, GVT=$175
+
+Final Test Complete!
+This test should demonstrate all four bonus types working together.
