@@ -482,7 +482,7 @@ function buildNavLink($targetPage, $currentPage = '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rixile Dashboard</title>
+    <title>Shoppe Club Dashboard</title>
     <script src="https://d3js.org/d3.v7.min.js" onload="console.log('D3.js loaded from CDN')" onerror="this.src='/js/d3.v7.min.js';console.error('CDN failed, loading local D3.js')"></script>
     <script src="https://cdn.tailwindcss.com" onload="console.log('Tailwind CSS loaded from CDN')" onerror="this.src='/css/tailwind.min.css';console.error('CDN failed, loading local Tailwind')"></script>
     <link href="css/style.css" rel="stylesheet">
@@ -597,7 +597,7 @@ function buildNavLink($targetPage, $currentPage = '') {
         <!-- Sidebar -->
         <div id="sidebar" class="bg-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 md:relative md:translate-x-0 transition-transform duration-300 ease-in-out">
             <div class="px-4">
-                <h2 class="text-2xl font-bold text-gray-800">Rixile</h2>
+                <h2 class="text-2xl font-bold text-gray-800">Shoppe Club</h2>
             </div>
             <nav class="space-y-1">
                 <a href="dashboard.php?page=overview" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'overview' ? 'bg-blue-500 text-white' : '' ?>">Overview</a>

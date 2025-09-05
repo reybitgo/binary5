@@ -95,19 +95,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 $mail->isSMTP();
                                 $mail->Host = 'smtp.hostinger.com'; // Change to your SMTP server
                                 $mail->SMTPAuth = true;
-                                $mail->Username = 'support@rixile.org'; // Change to your email
+                                $mail->Username = 'support@shoppeclub.online'; // Change to your email
                                 $mail->Password = '-----'; // Change to your app password
                                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                                 $mail->Port = 587;
                                 
                                 // Recipients
-                                $mail->setFrom('noreply@rixile.org', 'Rixile Support');
+                                $mail->setFrom('noreply@shoppeclub.online', 'Shoppeclub Support');
                                 $mail->addAddress($user['email'], $user['username']);
-                                $mail->addReplyTo('support@rixile.org', 'Rixile Support');
+                                $mail->addReplyTo('support@shoppeclub.online', 'Shoppeclub Support');
                                 
                                 // Content
                                 $mail->isHTML(true);
-                                $mail->Subject = 'Rixile Password Reset Request';
+                                $mail->Subject = 'Shoppeclub Password Reset Request';
                                 $mail->Body = generateEmailHTML($user['username'], $resetLink);
                                 $mail->AltBody = generateEmailText($user['username'], $resetLink);
                                 
@@ -129,11 +129,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                                 $emailSent = true;
                             } else {
                                 // Try PHP's built-in mail function as fallback
-                                $subject = 'Rixile Password Reset Request';
+                                $subject = 'Shoppeclub Password Reset Request';
                                 $message = generateEmailText($user['username'], $resetLink);
                                 $headers = [
-                                    'From: noreply@rixile.org',
-                                    'Reply-To: support@rixile.org',
+                                    'From: noreply@shoppeclub.online',
+                                    'Reply-To: support@shoppeclub.online',
                                     'X-Mailer: PHP/' . phpversion(),
                                     'Content-Type: text/plain; charset=UTF-8'
                                 ];
@@ -173,7 +173,7 @@ function generateEmailHTML($username, $resetLink) {
             <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
                 <h2 style='color: #667eea;'>Password Reset Request</h2>
                 <p>Hello <strong>" . htmlspecialchars($username) . "</strong>,</p>
-                <p>We received a request to reset your password for your Rixile account. Click the button below to set a new password:</p>
+                <p>We received a request to reset your password for your Shoppeclub account. Click the button below to set a new password:</p>
                 <div style='text-align: center; margin: 30px 0;'>
                     <a href='" . htmlspecialchars($resetLink) . "' 
                        style='background: linear-gradient(135deg, #667eea, #764ba2); 
@@ -193,8 +193,8 @@ function generateEmailHTML($username, $resetLink) {
                 <hr style='margin: 30px 0; border: none; height: 1px; background: #eee;'>
                 <p style='color: #666; font-size: 14px;'>
                     Best regards,<br>
-                    The Rixile Team<br>
-                    <a href='mailto:support@rixile.org' style='color: #667eea;'>support@rixile.org</a>
+                    The Shoppeclub Team<br>
+                    <a href='mailto:support@shoppeclub.online' style='color: #667eea;'>support@shoppeclub.online</a>
                 </p>
             </div>
         </body>
@@ -205,14 +205,14 @@ function generateEmailHTML($username, $resetLink) {
 function generateEmailText($username, $resetLink) {
     return "Password Reset Request\n\n" .
            "Hello " . $username . ",\n\n" .
-           "We received a request to reset your password for your Rixile account.\n\n" .
+           "We received a request to reset your password for your Shoppeclub account.\n\n" .
            "Click the link below to set a new password:\n" .
            $resetLink . "\n\n" .
            "This link will expire in 1 hour for security reasons.\n\n" .
            "If you did not request a password reset, please ignore this email. Your account remains secure.\n\n" .
            "Best regards,\n" .
-           "The Rixile Team\n" .
-           "support@rixile.org";
+           "The Shoppeclub Team\n" .
+           "support@shoppeclub.online";
 }
 
 $csrfToken = generateCSRFToken();
@@ -222,7 +222,7 @@ $csrfToken = generateCSRFToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - Rixile</title>
+    <title>Forgot Password - Shoppe Club</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
