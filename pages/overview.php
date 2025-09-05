@@ -160,7 +160,7 @@
                 <h3 class="text-lg font-semibold text-gray-700">Matched Bonus</h3>
                 <p class="text-2xl text-green-500">
                     <?php
-                    $leadership_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type IN ('leadership_bonus', 'leadership_reverse_bonus')");
+                    $leadership_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type = 'leadership_bonus'");
                     $leadership_earnings->execute([$uid]);
                     echo '$'.number_format($leadership_earnings->fetchColumn(), 2);
                     ?>
@@ -174,9 +174,7 @@
                 <h3 class="text-lg font-semibold text-gray-700">Mentor Bonus</h3>
                 <p class="text-2xl text-orange-500">
                     <?php
-                    // Note: Mentor bonus type would need to be added to wallet_tx type enum
-                    // For now, showing 0 as placeholder
-                    $mentor_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type = 'mentor_bonus'");
+                    $mentor_earnings = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) FROM wallet_tx WHERE user_id = ? AND type = 'leadership_reverse_bonus'");
                     $mentor_earnings->execute([$uid]);
                     echo '$'.number_format($mentor_earnings->fetchColumn(), 2);
                     ?>
