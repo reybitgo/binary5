@@ -1,5 +1,5 @@
 <?php
-// pages/users.php - Admin-only user monitoring with enhanced pagination and search
+// pages/users.php - Admin-only user monitoring with enhanced pagination, search, and print
 require_once 'config.php';
 require_once 'functions.php';
 
@@ -282,7 +282,7 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
             </div>
         </div>
     <?php else: ?>
-        <div class="overflow-x-auto bg-white border rounded-lg">
+        <div class="overflow-x-auto bg-white border rounded-lg" id="users-table">
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
@@ -477,8 +477,8 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
             </div>
             
             <div class="flex space-x-2">
-                <button onclick="window.print()" class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                    Print
+                <button onclick="printTable()" class="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                    Print Table
                 </button>
                 <a href="export_users.php?<?= http_build_query(array_filter(['q' => $search, 'role' => $roleFilter, 'position' => $positionFilter])) ?>" 
                    class="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
@@ -491,13 +491,124 @@ function getPaginationRange($currentPage, $totalPages, $maxLinks = 7) {
 
 <style>
 @media print {
-    .no-print { display: none !important; }
-    table { font-size: 12px; }
-    .bg-gray-50 { background-color: #f9f9f9 !important; }
+    /* Hide everything by default */
+    body * { visibility: hidden; }
+    
+    /* Show only the print content */
+    .print-content, .print-content * { visibility: visible; }
+    .print-content { position: absolute; top: 0; left: 0; width: 100%; }
+    
+    /* Hide non-essential elements */
+    .no-print, nav, .pagination, button, .export-options { display: none !important; }
+    
+    /* Table styling for print */
+    table { font-size: 11px; width: 100%; border-collapse: collapse; }
+    th, td { padding: 4px 6px; border: 1px solid #ddd; }
+    th { background-color: #f5f5f5 !important; font-weight: bold; }
+    
+    /* Page settings */
+    @page { margin: 0.5in; size: landscape; }
+    
+    /* Ensure table fits on page */
+    .overflow-x-auto { overflow: visible !important; }
 }
 </style>
 
 <script>
+function printTable() {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=1200,height=800');
+    
+    // Get current filters for the header
+    const search = '<?= addslashes($search) ?>';
+    const roleFilter = '<?= addslashes($roleFilter) ?>';
+    const positionFilter = '<?= addslashes($positionFilter) ?>';
+    
+    // Build filter info
+    let filterInfo = '';
+    if (search || roleFilter || positionFilter) {
+        filterInfo = '<p><strong>Filters Applied:</strong> ';
+        const filters = [];
+        if (search) filters.push(`Search: "${search}"`);
+        if (roleFilter) filters.push(`Role: ${roleFilter}`);
+        if (positionFilter) filters.push(`Position: ${positionFilter}`);
+        filterInfo += filters.join(', ') + '</p>';
+    }
+    
+    // Get the table HTML
+    const tableHtml = document.querySelector('#users-table').innerHTML;
+    
+    // Create the print document
+    const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Users Export - ${new Date().toLocaleDateString()}</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #333; margin-bottom: 10px; }
+                .header-info { margin-bottom: 20px; font-size: 12px; color: #666; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th, td { padding: 6px 8px; border: 1px solid #ddd; text-align: left; }
+                th { background-color: #f5f5f5; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .text-center { text-align: center; }
+                .font-mono { font-family: monospace; }
+                .inline-flex { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+                .bg-blue-100 { background-color: #dbeafe; color: #1e40af; }
+                .bg-green-100 { background-color: #dcfce7; color: #166534; }
+                .bg-red-100 { background-color: #fee2e2; color: #991b1b; }
+                .bg-yellow-100 { background-color: #fef3c7; color: #92400e; }
+                .bg-gray-100 { background-color: #f3f4f6; color: #374151; }
+                @page { size: landscape; margin: 0.5in; }
+                .summary { margin-top: 20px; font-size: 12px; }
+                /* Remove sort arrows and links for print */
+                a { text-decoration: none; color: inherit; }
+                span.ml-1 { display: none; }
+            </style>
+        </head>
+        <body>
+            <h1>User Management Report</h1>
+            <div class="header-info">
+                <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+                <p><strong>Total Users:</strong> <?= number_format($totalUsers) ?></p>
+                <p><strong>Showing:</strong> <?= number_format(count($users)) ?> users</p>
+                ${filterInfo}
+            </div>
+            
+            <div class="table-container">
+                ${tableHtml}
+            </div>
+            
+            <div class="summary">
+                <p><strong>Report Summary:</strong></p>
+                <ul>
+                    <li>Total users in system: <?= number_format($totalUsers) ?></li>
+                    <li>Users shown in this report: <?= number_format(count($users)) ?></li>
+                    <li>Export format: Print-friendly table</li>
+                    <li>Generated by: Admin</li>
+                </ul>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Write content to print window
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    printWindow.onload = function() {
+        printWindow.focus();
+        printWindow.print();
+        
+        // Close the window after printing (optional)
+        setTimeout(function() {
+            printWindow.close();
+        }, 100);
+    };
+}
+
 // Auto-submit form when per_page changes
 document.querySelector('select[name="per_page"]').addEventListener('change', function() {
     this.form.submit();
@@ -523,17 +634,23 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         document.querySelector('input[name="q"]').focus();
     }
+    
+    // Print shortcut (Ctrl+P)
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        printTable();
+    }
 });
 
 // Show keyboard shortcuts hint
 document.addEventListener('DOMContentLoaded', function() {
     const hint = document.createElement('div');
     hint.className = 'fixed bottom-4 right-4 bg-gray-800 text-white text-xs px-3 py-2 rounded-lg opacity-0 transition-opacity duration-300 no-print';
-    hint.innerHTML = 'Shortcuts: ← → or P/N for pages, / for search';
+    hint.innerHTML = 'Shortcuts: ← → or P/N for pages, / for search, Ctrl+P to print';
     document.body.appendChild(hint);
     
     // Show hint briefly on page load
     setTimeout(() => hint.classList.add('opacity-75'), 1000);
-    setTimeout(() => hint.classList.remove('opacity-75'), 4000);
+    setTimeout(() => hint.classList.remove('opacity-75'), 5000);
 });
 </script>
