@@ -77,9 +77,16 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($breakdown as $type => $amount): ?>
+                    <?php
+                    $niceNames = [
+                        'leadership_bonus'         => 'Matched Bonus',
+                        'leadership_reverse_bonus' => 'Mentor Bonus'
+                    ];
+                    foreach ($breakdown as $type => $amount):
+                        $display = $niceNames[$type] ?? ucwords(str_replace('_', ' ', $type));
+                    ?>
                         <tr class="border-b">
-                            <td class="p-2 capitalize"><?= str_replace('_', ' ', $type) ?></td>
+                            <td class="p-2"><?= htmlspecialchars($display) ?></td>
                             <td class="p-2 text-right font-semibold">$<?= number_format($amount, 2) ?></td>
                         </tr>
                     <?php endforeach; ?>
@@ -97,7 +104,7 @@
                 <p class="text-2xl text-blue-500">
                     <?php
                     $directs = $pdo->prepare("SELECT COUNT(*) FROM users WHERE sponsor_id = ?");
-                    $directs->execute([$user['username']]);
+                    $directs->execute([$user['id']]);
                     echo $directs->fetchColumn();
                     ?>
                 </p>
@@ -231,11 +238,26 @@
                 <p class="text-2xl font-bold">$<?= number_format($totalEarnings, 2) ?></p>
             </div>
 
-            <?php foreach ($earnings as $earning): ?>
+            <?php
+            $niceNames = [
+                'leadership_bonus'         => 'Matched Bonus',
+                'leadership_reverse_bonus' => 'Mentor Bonus'
+            ];
+
+            foreach ($earnings as $earning):
+                $display = $niceNames[$earning['type']] ??
+                        ucwords(str_replace(['_', 'bonus'], [' ', ''], $earning['type']));
+            ?>
                 <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg">
-                    <h4 class="text-sm font-medium text-gray-600"><?= ucwords(str_replace(['_', 'bonus'], [' ', ''], $earning['type'])) ?></h4>
-                    <p class="text-xl font-bold text-gray-800">$<?= number_format($earning['total'], 2) ?></p>
-                    <p class="text-xs text-gray-500"><?= $earning['count'] ?> payments</p>
+                    <h4 class="text-sm font-medium text-gray-600">
+                        <?= htmlspecialchars($display) ?>
+                    </h4>
+                    <p class="text-xl font-bold text-gray-800">
+                        $<?= number_format($earning['total'], 2) ?>
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        <?= $earning['count'] ?> payments
+                    </p>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -285,11 +307,17 @@
                 </thead>
                 <tbody>
                     <?php
+                    $niceNames = [
+                        'leadership_bonus'         => 'matched_bonus',
+                        'leadership_reverse_bonus' => 'mentor_bonus'
+                    ];
+
                     $tx = $pdo->prepare("SELECT * FROM wallet_tx WHERE user_id = ? ORDER BY id DESC LIMIT 20");
                     $tx->execute([$uid]);
                     foreach ($tx as $t) {
+                        $displayType = $niceNames[$t['type']] ?? htmlspecialchars($t['type']);
                         echo "<tr class='border-t'>
-                                <td class='p-2'>" . htmlspecialchars($t['type']) . "</td>
+                                <td class='p-2'>{$displayType}</td>
                                 <td class='p-2'>" . ($t['amount'] >= 0 ? '+' : '') . '$' . number_format(abs($t['amount']), 2) . "</td>
                                 <td class='p-2'>" . $t['created_at'] . "</td>
                                 <td class='p-2'>Completed</td>
