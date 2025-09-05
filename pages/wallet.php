@@ -69,11 +69,17 @@
             </thead>
             <tbody>
                 <?php
+                $niceNames = [
+                    'leadership_bonus'         => 'matched_bonus',
+                    'leadership_reverse_bonus' => 'mentor_bonus'
+                ];
+
                 $tx = $pdo->prepare("SELECT * FROM wallet_tx WHERE user_id = ? ORDER BY id DESC LIMIT 20");
                 $tx->execute([$uid]);
                 foreach ($tx as $t) {
+                    $displayType = $niceNames[$t['type']] ?? htmlspecialchars($t['type']);
                     echo "<tr class='border-t'>
-                            <td class='p-2'>" . htmlspecialchars($t['type']) . "</td>
+                            <td class='p-2'>{$displayType}</td>
                             <td class='p-2'>" . ($t['amount'] >= 0 ? '+' : '') . '$' . number_format(abs($t['amount']), 2) . "</td>
                             <td class='p-2'>" . $t['created_at'] . "</td>
                           </tr>";
