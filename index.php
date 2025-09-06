@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Shoppe Club – the world’s first Buy-&-Build marketplace. Shop daily essentials, earn up to 30 % crypto-cashback, and auto-grow a binary-powered affiliate tree.">
+    <meta name="description" content="Shoppe Club – the world's first Buy-&-Build marketplace. Shop daily essentials, earn up to 30% crypto-cashback, and auto-grow a binary-powered affiliate tree.">
     <title>Shoppe Club – Shopping is the New Mining</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
@@ -18,11 +18,13 @@
             --text-primary: #1a1a1a;
             --text-secondary: #666;
             --surface: #ffffff;
-            --surface-soft: #eff6ff;
+            --surface-soft: #f8fafc;
             --border-light: rgba(0, 0, 0, 0.08);
             --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             --shadow-large: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --container-max: 1200px;
+            --container-padding: clamp(1rem, 4vw, 2rem);
         }
 
         * {
@@ -39,7 +41,6 @@
             overflow-x: hidden;
         }
 
-        /* Smooth Scrolling */
         html {
             scroll-behavior: smooth;
         }
@@ -54,7 +55,7 @@
             border-bottom: 1px solid var(--border-light);
             z-index: 1000;
             transition: all 0.3s ease;
-            padding: 1rem 0;
+            padding: clamp(0.5rem, 2vw, 1rem) 0;
         }
 
         .navbar.scrolled {
@@ -63,16 +64,16 @@
         }
 
         .nav-container {
-            max-width: 1200px;
+            max-width: var(--container-max);
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 var(--container-padding);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .logo {
-            font-size: 1.8rem;
+            font-size: clamp(1.4rem, 3vw, 1.8rem);
             font-weight: 800;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
@@ -85,7 +86,7 @@
         .nav-links {
             display: flex;
             list-style: none;
-            gap: 2rem;
+            gap: clamp(1rem, 3vw, 2rem);
             align-items: center;
         }
 
@@ -93,6 +94,7 @@
             text-decoration: none;
             color: var(--text-primary);
             font-weight: 500;
+            font-size: clamp(0.9rem, 2vw, 1rem);
             transition: all 0.3s ease;
             position: relative;
         }
@@ -114,50 +116,40 @@
 
         .nav-auth {
             display: flex;
-            gap: 1rem;
+            gap: 0.75rem;
             align-items: center;
         }
 
-        .nav-login {
-            color: var(--text-primary) !important;
-            padding: 0.75rem 1.5rem;
+        .nav-login, .nav-register {
+            color: var(--text-primary);
+            padding: clamp(0.5rem, 2vw, 0.75rem) clamp(1rem, 3vw, 1.5rem);
             border-radius: 50px;
             font-weight: 600;
+            font-size: clamp(0.85rem, 2vw, 1rem);
             transition: all 0.3s ease;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .nav-login {
             border: 2px solid transparent;
             background: transparent;
-            text-decoration: none;
         }
 
         .nav-login:hover {
             border-color: #3b82f6;
-            color: #3b82f6 !important;
-            text-decoration: none;
-        }
-
-        .nav-login::after {
-            display: none;
+            color: #3b82f6;
         }
 
         .nav-register {
             background: var(--primary-gradient);
-            color: white !important;
-            padding: 0.75rem 1.5rem;
-            border-radius: 50px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            color: white;
             box-shadow: var(--shadow-soft);
-            text-decoration: none;
         }
 
         .nav-register:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-medium);
-            text-decoration: none;
-        }
-
-        .nav-register::after {
-            display: none;
         }
 
         .mobile-menu {
@@ -167,9 +159,49 @@
             font-size: 1.5rem;
             color: var(--text-primary);
             cursor: pointer;
+            padding: 0.5rem;
         }
 
-        /* Return to Top Button */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 999;
+            padding: 2rem;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .mobile-nav.active {
+            display: flex;
+        }
+
+        .mobile-nav a {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .mobile-close {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        /* Back to Top Button */
         .back-to-top {
             position: fixed;
             bottom: 30px;
@@ -204,10 +236,6 @@
             box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
         }
 
-        .back-to-top:active {
-            transform: translateY(-2px) scale(1.05);
-        }
-
         /* Hero Section */
         .hero {
             min-height: 100vh;
@@ -216,6 +244,7 @@
             position: relative;
             overflow: hidden;
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #10b981 100%);
+            padding: clamp(80px, 15vh, 120px) 0 clamp(60px, 10vh, 80px);
         }
 
         .hero::before {
@@ -230,19 +259,23 @@
         }
 
         .hero-container {
-            max-width: 1200px;
+            max-width: var(--container-max);
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 var(--container-padding);
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4rem;
+            grid-template-columns: 1fr;
+            gap: clamp(2rem, 5vw, 4rem);
             align-items: center;
             position: relative;
             z-index: 2;
         }
 
+        .hero-content {
+            text-align: center;
+        }
+
         .hero-content h1 {
-            font-size: 3.5rem;
+            font-size: clamp(2.5rem, 6vw, 3.5rem);
             font-weight: 800;
             line-height: 1.1;
             color: white;
@@ -251,32 +284,39 @@
         }
 
         .hero-content p {
-            font-size: 1.25rem;
+            font-size: clamp(1.1rem, 2.5vw, 1.25rem);
             color: rgba(255, 255, 255, 0.9);
             margin-bottom: 2rem;
             line-height: 1.6;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .hero-cta {
             display: flex;
             gap: 1rem;
             flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 3rem;
         }
 
         .btn {
-            padding: 1rem 2rem;
+            padding: clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem);
             border-radius: 50px;
             font-weight: 600;
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 2vw, 1rem);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             transition: all 0.3s ease;
             border: none;
             cursor: pointer;
             position: relative;
             overflow: hidden;
+            white-space: nowrap;
         }
 
         .btn-primary {
@@ -307,12 +347,14 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            margin-top: 2rem;
         }
 
         .floating-cards {
             position: relative;
             width: 100%;
-            height: 400px;
+            height: clamp(300px, 40vw, 400px);
+            max-width: 600px;
         }
 
         .floating-card {
@@ -321,9 +363,10 @@
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px;
-            padding: 1.5rem;
+            padding: clamp(1rem, 3vw, 1.5rem);
             color: white;
             animation: float 6s ease-in-out infinite;
+            width: clamp(140px, 25vw, 200px);
         }
 
         .floating-card:nth-child(1) {
@@ -345,9 +388,18 @@
         }
 
         .floating-card i {
-            font-size: 2rem;
+            font-size: clamp(1.5rem, 4vw, 2rem);
             margin-bottom: 0.5rem;
             display: block;
+        }
+
+        .floating-card h4 {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            margin-bottom: 0.25rem;
+        }
+
+        .floating-card p {
+            font-size: clamp(0.8rem, 1.8vw, 0.9rem);
         }
 
         @keyframes float {
@@ -355,25 +407,21 @@
             50% { transform: translateY(-20px); }
         }
 
-        /* Features Section */
-        .features {
-            padding: 6rem 0;
-            background: var(--surface);
-        }
-
+        /* Container */
         .container {
-            max-width: 1200px;
+            max-width: var(--container-max);
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 var(--container-padding);
         }
 
+        /* Section Headers */
         .section-header {
             text-align: center;
-            margin-bottom: 4rem;
+            margin-bottom: clamp(3rem, 6vw, 4rem);
         }
 
         .section-header h2 {
-            font-size: 2.5rem;
+            font-size: clamp(2rem, 5vw, 2.5rem);
             font-weight: 700;
             color: var(--text-primary);
             margin-bottom: 1rem;
@@ -381,22 +429,28 @@
         }
 
         .section-header p {
-            font-size: 1.125rem;
+            font-size: clamp(1rem, 2.5vw, 1.125rem);
             color: var(--text-secondary);
             max-width: 600px;
             margin: 0 auto;
         }
 
+        /* Features Section */
+        .features {
+            padding: clamp(4rem, 10vw, 6rem) 0;
+            background: var(--surface);
+        }
+
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+            gap: clamp(1.5rem, 4vw, 2rem);
         }
 
         .feature-card {
             background: var(--surface);
             border-radius: 20px;
-            padding: 2rem;
+            padding: clamp(1.5rem, 4vw, 2rem);
             text-align: center;
             border: 1px solid var(--border-light);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -426,15 +480,15 @@
         }
 
         .feature-icon {
-            width: 80px;
-            height: 80px;
+            width: clamp(60px, 15vw, 80px);
+            height: clamp(60px, 15vw, 80px);
             background: var(--primary-gradient);
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 1.5rem;
-            font-size: 2rem;
+            font-size: clamp(1.5rem, 4vw, 2rem);
             color: white;
         }
 
@@ -451,7 +505,7 @@
         }
 
         .feature-card h3 {
-            font-size: 1.25rem;
+            font-size: clamp(1.1rem, 3vw, 1.25rem);
             font-weight: 600;
             margin-bottom: 1rem;
             color: var(--text-primary);
@@ -460,20 +514,20 @@
         .feature-card p {
             color: var(--text-secondary);
             line-height: 1.6;
+            font-size: clamp(0.9rem, 2vw, 1rem);
         }
 
         /* How It Works Section */
         .how-it-works {
-            padding: 6rem 0;
+            padding: clamp(4rem, 10vw, 6rem) 0;
             background: var(--surface-soft);
-            position: relative;
         }
 
         .steps-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 3rem;
-            margin-top: 4rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+            gap: clamp(2rem, 5vw, 3rem);
+            margin-top: clamp(3rem, 6vw, 4rem);
         }
 
         .step-card {
@@ -482,14 +536,14 @@
         }
 
         .step-number {
-            width: 80px;
-            height: 80px;
+            width: clamp(60px, 15vw, 80px);
+            height: clamp(60px, 15vw, 80px);
             background: var(--primary-gradient);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: clamp(1.5rem, 4vw, 2rem);
             font-weight: 700;
             color: white;
             margin: 0 auto 1.5rem;
@@ -504,35 +558,36 @@
             background: var(--accent-gradient);
         }
 
-        .step-card:not(:last-child) .step-number::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 100%;
-            width: 100px;
-            height: 2px;
-            background: linear-gradient(90deg, #3b82f6, transparent);
-            transform: translateY(-50%);
+        .step-card h3 {
+            font-size: clamp(1.1rem, 3vw, 1.25rem);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .step-card p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: clamp(0.9rem, 2vw, 1rem);
         }
 
         /* Benefits Section */
         .benefits {
-            padding: 6rem 0;
+            padding: clamp(4rem, 10vw, 6rem) 0;
             background: var(--surface);
         }
 
         .benefits-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-top: 4rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+            gap: clamp(1.5rem, 4vw, 2rem);
+            margin-top: clamp(3rem, 6vw, 4rem);
         }
 
         .benefit-item {
             display: flex;
             align-items: flex-start;
             gap: 1.5rem;
-            padding: 2rem;
+            padding: clamp(1.5rem, 4vw, 2rem);
             background: var(--surface);
             border-radius: 15px;
             border: 1px solid var(--border-light);
@@ -544,14 +599,14 @@
         }
 
         .benefit-icon {
-            width: 60px;
-            height: 60px;
+            width: clamp(50px, 12vw, 60px);
+            height: clamp(50px, 12vw, 60px);
             background: var(--primary-gradient);
             border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
             color: white;
             flex-shrink: 0;
         }
@@ -568,9 +623,112 @@
             background: var(--primary-gradient);
         }
 
+        .benefit-item h4 {
+            font-size: clamp(1rem, 2.5vw, 1.1rem);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .benefit-item p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+        }
+
+        /* FAQ Section */
+        .faq {
+            padding: clamp(4rem, 10vw, 6rem) 0;
+            background: var(--surface-soft);
+        }
+
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background: var(--surface);
+            border-radius: 15px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-light);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .faq-item:hover {
+            box-shadow: var(--shadow-soft);
+        }
+
+        .faq-question {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: clamp(1.25rem, 3vw, 1.5rem);
+            text-align: left;
+            font-size: clamp(1rem, 2.5vw, 1.1rem);
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background: var(--surface-soft);
+        }
+
+        .faq-question i {
+            transition: transform 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .faq-question.active i {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 0 clamp(1.25rem, 3vw, 1.5rem);
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .faq-answer.active {
+            max-height: 1000px;
+            padding: 0 clamp(1.25rem, 3vw, 1.5rem) clamp(1.25rem, 3vw, 1.5rem);
+        }
+
+        .faq-answer p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            margin-bottom: 1rem;
+        }
+
+        .faq-answer ul {
+            color: var(--text-secondary);
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .faq-answer li {
+            margin-bottom: 0.5rem;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+        }
+
+        .faq-answer code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+
         /* CTA Section */
         .cta-section {
-            padding: 6rem 0;
+            padding: clamp(4rem, 10vw, 6rem) 0;
             background: var(--dark-gradient);
             color: white;
             text-align: center;
@@ -595,14 +753,14 @@
         }
 
         .cta-section h2 {
-            font-size: 3rem;
+            font-size: clamp(2rem, 5vw, 3rem);
             font-weight: 700;
             margin-bottom: 1.5rem;
             letter-spacing: -0.02em;
         }
 
         .cta-section p {
-            font-size: 1.25rem;
+            font-size: clamp(1.1rem, 2.5vw, 1.25rem);
             opacity: 0.9;
             margin-bottom: 2.5rem;
             max-width: 600px;
@@ -614,18 +772,18 @@
         .footer {
             background: #0a0a0a;
             color: white;
-            padding: 3rem 0 1rem;
+            padding: clamp(2rem, 5vw, 3rem) 0 1rem;
         }
 
         .footer-content {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 3rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+            gap: clamp(2rem, 5vw, 3rem);
             margin-bottom: 2rem;
         }
 
         .footer-section h3 {
-            font-size: 1.25rem;
+            font-size: clamp(1.1rem, 2.5vw, 1.25rem);
             font-weight: 600;
             margin-bottom: 1rem;
         }
@@ -642,6 +800,7 @@
             color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
             transition: color 0.3s ease;
+            font-size: clamp(0.9rem, 2vw, 1rem);
         }
 
         .footer-section a:hover {
@@ -653,6 +812,7 @@
             padding-top: 2rem;
             text-align: center;
             color: rgba(255, 255, 255, 0.6);
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
         }
 
         /* Animations */
@@ -672,9 +832,9 @@
             animation: fadeInUp 0.6s ease forwards;
         }
 
-        /* Mobile Styles */
+        /* Mobile Responsive Improvements */
         @media (max-width: 768px) {
-            .nav-links {
+            .nav-links, .nav-auth {
                 display: none;
             }
             
@@ -682,43 +842,37 @@
                 display: block;
             }
 
-            .nav-auth {
-                gap: 0.5rem;
-            }
-
-            .nav-login, .nav-register {
-                padding: 0.5rem 1rem;
-                font-size: 0.9rem;
-            }
-
             .hero-container {
                 grid-template-columns: 1fr;
-                gap: 3rem;
                 text-align: center;
             }
 
-            .hero-content h1 {
-                font-size: 2.5rem;
+            .hero-cta {
+                flex-direction: column;
+                align-items: center;
             }
 
-            .hero-cta {
-                justify-content: center;
+            .btn {
+                width: 100%;
+                max-width: 300px;
             }
 
             .floating-cards {
-                height: 300px;
+                height: 250px;
             }
 
-            .section-header h2 {
-                font-size: 2rem;
+            .floating-card {
+                width: clamp(120px, 30vw, 160px);
             }
 
-            .cta-section h2 {
-                font-size: 2rem;
+            .benefits-grid {
+                grid-template-columns: 1fr;
             }
 
-            .step-card:not(:last-child) .step-number::after {
-                display: none;
+            .benefit-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
             }
 
             .back-to-top {
@@ -731,25 +885,45 @@
         }
 
         @media (max-width: 480px) {
-            .nav-container {
-                padding: 0 1rem;
+            .floating-card {
+                padding: 0.75rem;
             }
-
-            .nav-auth {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-
-            .nav-login, .nav-register {
-                padding: 0.5rem 1rem;
+            
+            .floating-card h4 {
                 font-size: 0.8rem;
+            }
+            
+            .floating-card p {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .hero-container {
+                grid-template-columns: 1fr 1fr;
+                text-align: left;
+            }
+
+            .hero-visual {
+                margin-top: 0;
+            }
+
+            .step-card:not(:last-child) .step-number::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 100%;
+                width: 60px;
+                height: 2px;
+                background: linear-gradient(90deg, #3b82f6, transparent);
+                transform: translateY(-50%);
             }
         }
     </style>
 </head>
 
 <body>
-<!-- ============ NAVBAR (only text + logo changed) ============ -->
+<!-- Navigation -->
 <nav class="navbar" id="navbar">
     <div class="nav-container">
         <a href="#" class="logo">Shoppe Club</a>
@@ -758,19 +932,34 @@
             <li><a href="#features">Features</a></li>
             <li><a href="#how-it-works">How It Works</a></li>
             <li><a href="#benefits">Benefits</a></li>
+            <li><a href="#faq">FAQ</a></li>
         </ul>
         <div class="nav-auth">
             <a href="login.php" class="nav-login">Login</a>
             <a href="register.php" class="nav-register">Register</a>
         </div>
-        <button class="mobile-menu"><i class="fas fa-bars"></i></button>
+        <button class="mobile-menu" id="mobileMenu"><i class="fas fa-bars"></i></button>
     </div>
 </nav>
 
-<!-- ======= BACK-TO-TOP (unchanged behaviour) ======= -->
+<!-- Mobile Navigation -->
+<div class="mobile-nav" id="mobileNav">
+    <button class="mobile-close" id="mobileClose"><i class="fas fa-times"></i></button>
+    <a href="#home">Home</a>
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#benefits">Benefits</a>
+    <a href="#faq">FAQ</a>
+    <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem;">
+        <a href="login.php" class="nav-login">Login</a>
+        <a href="register.php" class="nav-register">Register</a>
+    </div>
+</div>
+
+<!-- Back to Top Button -->
 <button class="back-to-top" id="backToTop"><i class="fas fa-arrow-up"></i></button>
 
-<!-- ================= HERO SECTION ================= -->
+<!-- Hero Section -->
 <section class="hero" id="home">
     <div class="hero-container">
         <div class="hero-content">
@@ -782,22 +971,21 @@
             </div>
         </div>
 
-        <!-- new floating cards -->
         <div class="hero-visual">
             <div class="floating-cards">
                 <div class="floating-card">
                     <i class="fa-solid fa-bag-shopping"></i>
-                    <h4>30 % Crypto-Cashback</h4>
+                    <h4>30% Token-Cashback</h4>
                     <p>On every cart</p>
                 </div>
                 <div class="floating-card">
                     <i class="fa-solid fa-sitemap"></i>
                     <h4>Binary Bonus</h4>
-                    <p>20 % per pair</p>
+                    <p>10 to 30% per pair</p>
                 </div>
                 <div class="floating-card">
                     <i class="fa-solid fa-gift"></i>
-                    <h4>Leadership & Mentor</h4>
+                    <h4>Matched & Mentor</h4>
                     <p>5-level deep</p>
                 </div>
             </div>
@@ -805,7 +993,7 @@
     </div>
 </section>
 
-<!-- ================= FEATURES ================= -->
+<!-- Features Section -->
 <section class="features" id="features">
     <div class="container">
         <div class="section-header">
@@ -821,23 +1009,18 @@
             <div class="feature-card animate-on-scroll">
                 <div class="feature-icon"><i class="fa-solid fa-link"></i></div>
                 <h3>Link-in-Bio Franchise</h3>
-                <p>Drop your unique .club handle on TikTok, IG, Discord. Friends shop → you earn 10 % referral + binary pairs instantly.</p>
+                <p>Drop your unique .club handle on TikTok, IG, Discord. Friends shop → you earn 10% referral + binary pairs instantly.</p>
             </div>
             <div class="feature-card animate-on-scroll">
                 <div class="feature-icon"><i class="fa-solid fa-chart-pie"></i></div>
                 <h3>Real-Time Dashboard</h3>
-                <p>Track cashback, pairs, leadership & mentor flows live. One-click swap earnings to USDT, USD, or store credit.</p>
-            </div>
-            <div class="feature-card animate-on-scroll">
-                <div class="feature-icon"><i class="fa-solid fa-leaf"></i></div>
-                <h3>Carbon-Neutral Cart</h3>
-                <p>1 % of every order funds DAO-voted eco-suppliers. Shop responsibly without lifting a finger.</p>
+                <p>Track cashback, pairs, matched & mentor flows live. One-click swap earnings to USDT, USD, or store credit.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ================= HOW IT WORKS ================= -->
+<!-- How It Works Section -->
 <section class="how-it-works" id="how-it-works">
     <div class="container">
         <div class="section-header">
@@ -853,69 +1036,233 @@
             <div class="step-card animate-on-scroll">
                 <div class="step-number">2</div>
                 <h3>Shop or Share—Both Count</h3>
-                <p>Buy groceries OR share your link. Either action drops PV into your binary buckets and fires 10 % referral to your sponsor.</p>
+                <p>Buy groceries OR share your link. Either action drops PV into your binary buckets and fires 10% referral to your sponsor.</p>
             </div>
             <div class="step-card animate-on-scroll">
                 <div class="step-number">3</div>
                 <h3>Wake Up to Earnings</h3>
-                <p>AI matches left/right legs at 00:00 UTC, pays 20 % per pair, tops up cashback, and flushes the rest to tomorrow—automatically.</p>
+                <p>AI matches left/right legs at 00:00 UTC, pays 20% per pair, tops up cashback, and flushes the rest to tomorrow—automatically.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ================= BENEFITS ================= -->
+<!-- Benefits Section -->
 <section class="benefits" id="benefits">
     <div class="container">
         <div class="section-header">
             <h2>Grow Your Wealth with Confidence</h2>
-            <p>Built on battle-tested Rixile mechanics, wrapped in a 2025-ready ecommerce shell.</p>
+            <p>Built on battle-tested Shoppe Club mechanics, wrapped in a 2025-ready ecommerce shell.</p>
         </div>
         <div class="benefits-grid">
             <div class="benefit-item animate-on-scroll">
-                <div class="benefit-icon"><i class="fas fa-shield-alt"></i></div>
+                <div class="benefit-icon"><i class="fas fa-wallet"></i></div>
                 <div>
-                    <h4>SAFU by Design</h4>
-                    <p>Shopify checkout + Fireblocks custody + on-chain BSC hashes for every bonus. Your cart is safer than your bank.</p>
+                    <h4>Simple eWallet System</h4>
+                    <p>Easy checkout through your personal eWallet. Top up with USDT, spend with confidence, track everything in real-time.</p>
                 </div>
             </div>
             <div class="benefit-item animate-on-scroll">
                 <div class="benefit-icon"><i class="fas fa-rocket"></i></div>
                 <div>
                     <h4>Instant Liquidity</h4>
-                    <p>Cash out USDT to Apple Pay, Google Pay, or bank card in < 30 seconds—no minimums, no stags.</p>
+                    <p>Cash out USDT to Apple Pay, Google Pay, or bank card in < 30 seconds—no minimums, no waiting.</p>
                 </div>
             </div>
             <div class="benefit-item animate-on-scroll">
                 <div class="benefit-icon"><i class="fas fa-chart-line"></i></div>
                 <div>
                     <h4>Bear-Market Proof</h4>
-                    <p>Cashback is USDT-denominated. If crypto crashes, flip payout to USD or store credit—your choice, every order.</p>
+                    <p>Cashback is dollar-denominated. If crypto crashes, flip payout to USD or store credit—your choice, every order.</p>
+                </div>
+            </div>            
+        </div>
+    </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="faq" id="faq">
+    <div class="container">
+        <div class="section-header">
+            <h2>Frequently Asked Questions</h2>
+            <p>Everything you need to know about the Shoppe Club bonus system and affiliate marketing.</p>
+        </div>
+        <div class="faq-container">
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>What is Shoppe Club and how does it work?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Shoppe Club is the world's first Buy-&-Build marketplace that turns shopping into earning. Every dollar you spend becomes Point Value (PV) that flows through a binary tree system, generating multiple income streams: referral bonuses, binary pairs, matched bonuses, and mentor bonuses.</p>
+                    <p>Think of it as "shopping is the new mining" – instead of expensive mining equipment, your everyday purchases power your earnings.</p>
                 </div>
             </div>
-            <div class="benefit-item animate-on-scroll">
-                <div class="benefit-icon"><i class="fas fa-headset"></i></div>
-                <div>
-                    <h4>24/7 Support & DAO</h4>
-                    <p>Live chat + Discord DAO votes on new product lines. Next up: lab-grown coffee—members decide.</p>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>How do I start earning with affiliate marketing?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Getting started is simple and immediate:</p>
+                    <ul>
+                        <li>Register for free and choose your sponsor</li>
+                        <li>Get your unique <code>yourname.club</code> affiliate link</li>
+                        <li>Share your link on TikTok, Instagram, Discord, or anywhere online</li>
+                        <li>Earn 10% instant referral bonus when someone buys through your link</li>
+                        <li>Their purchases also add PV to your binary tree for additional earnings</li>
+                    </ul>
+                    <p>You can start sharing your link and earning commissions within minutes of joining – no waiting periods or minimum requirements.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>What is PV and how does the binary system work?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p><strong>PV (Point Value)</strong> equals the package price in dollars. Every $1 spent = 1 PV.</p>
+                    <p><strong>Binary System:</strong> Imagine two buckets – LEFT and RIGHT. When someone in your network makes a purchase, their PV flows up to fill your buckets based on which side of your tree they're on.</p>
+                    <p><strong>Daily Pairs:</strong> At 00:00 UTC daily, the system matches PV from both buckets. Each pair earns you $0.20 (20% of $1). Maximum 10 pairs per day. Matched PV is then flushed, and remaining PV carries over to tomorrow.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>What are the different bonus types?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p><strong>1. Referral Bonus (10%):</strong> Instant cash when someone you directly referred buys a package.</p>
+                    <p><strong>2. Binary Bonus (20% per pair):</strong> Daily matching of your left/right PV buckets, up to 10 pairs per day.</p>
+                    <p><strong>3. Matched Bonus (1-5%):</strong> Earn from binary pairs made by people in your downline network, based on your qualification levels.</p>
+                    <p><strong>4. Mentor Bonus (1-3%):</strong> When you earn binary pairs, qualified people in your downline also receive a percentage.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>How do Matched and Mentor bonus qualifications work?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p><strong>Matched Bonus Requirements:</strong></p>
+                    <ul>
+                        <li>Level 1: 5% per pair | Need $100 PVT + $500 GVT</li>
+                        <li>Level 2: 4% per pair | Need $200 PVT + $1,000 GVT</li>
+                        <li>Level 3: 3% per pair | Need $300 PVT + $2,500 GVT</li>
+                        <li>Level 4: 2% per pair | Need $500 PVT + $5,000 GVT</li>
+                        <li>Level 5: 1% per pair | Need $1,000 PVT + $10,000 GVT</li>
+                    </ul>
+                    <p><strong>PVT</strong> = Your personal spending | <strong>GVT</strong> = Total group volume (you + all downlines)</p>
+                    <p>If you don't meet requirements when someone earns a pair, that bonus is permanently lost for that specific occurrence.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>How do I withdraw my earnings?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Shoppe Club offers flexible withdrawal options:</p>
+                    <ul>
+                        <li><strong>USDT:</strong> Instant crypto withdrawal to your wallet</li>
+                        <li><strong>USD:</strong> Direct bank transfer or card payment</li>
+                        <li><strong>Store Credit:</strong> Use earnings for future purchases</li>
+                    </ul>
+                    <p>Withdrawals process in under 30 seconds with no minimum amounts or waiting periods. Your default wallet currency is in dollars for easy tracking.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>Is there a cost to join Shoppe Club?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Joining Shoppe Club is completely <strong>FREE</strong>. You can:</p>
+                    <ul>
+                        <li>Register at no cost</li>
+                        <li>Get your affiliate link immediately</li>
+                        <li>Start earning referral commissions right away</li>
+                        <li>Access your dashboard and tracking tools</li>
+                    </ul>
+                    <p>You only spend money when you choose to purchase products for yourself, which then generates PV and activates the binary bonus system.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>What products can I buy and sell?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Shoppe Club offers a diverse marketplace including:</p>
+                    <ul>
+                        <li>Daily essentials and groceries</li>
+                        <li>Skincare and beauty products</li>
+                        <li>Digital products and NFTs</li>
+                        <li>Phone top-ups and digital services</li>
+                        <li>Eco-friendly and sustainable products</li>
+                    </ul>
+                    <p>All products are carefully vetted, and 1% of every order supports eco-friendly suppliers as part of our carbon-neutral commitment.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>How secure are my earnings and transactions?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Security and simplicity are our priorities:</p>
+                    <ul>
+                        <li><strong>eWallet Integration:</strong> Simple, secure digital wallet system</li>
+                        <li><strong>USDT Top-ups:</strong> Easy funding with cryptocurrency</li>
+                        <li><strong>Real-time Tracking:</strong> Monitor all transactions instantly</li>
+                        <li><strong>Secure Checkout:</strong> Protected payment processing</li>
+                    </ul>
+                    <p>Your eWallet provides a streamlined shopping and earning experience.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <button class="faq-question">
+                    <span>Can I track my earnings and network in real-time?</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="faq-answer">
+                    <p>Yes! Your dashboard provides comprehensive real-time tracking:</p>
+                    <ul>
+                        <li>Live PV accumulation in both binary legs</li>
+                        <li>Daily pair matching and earnings</li>
+                        <li>All bonus types (referral, binary, matched, mentor)</li>
+                        <li>Network growth and genealogy visualization</li>
+                        <li>Wallet balance and transaction history</li>
+                        <li>Qualification progress for higher bonus levels</li>
+                    </ul>
+                    <p>Everything updates instantly so you can monitor your success as it happens.</p>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ================= CTA ================= -->
+<!-- CTA Section -->
 <section class="cta-section">
     <div class="container">
         <div class="cta-content">
             <h2>Ready to Turn Receipts into Revenue?</h2>
-            <p>Join the wait-list, get 100 PV airdrop + lifetime 0 % marketplace fees. Your first cashback hit lands in 60 seconds.</p>
+            <p>Join the wait-list, get 100 PV airdrop + lifetime 0% marketplace fees. Your first cashback hit lands in 60 seconds.</p>
             <a href="register.php" class="btn btn-primary"><i class="fas fa-star"></i>Join Shoppe Club Now</a>
         </div>
     </div>
 </section>
 
-<!-- ================= FOOTER ================= -->
+<!-- Footer -->
 <footer class="footer">
     <div class="container">
         <div class="footer-content">
@@ -930,12 +1277,12 @@
                     <li><a href="#features">Features</a></li>
                     <li><a href="#how-it-works">How It Works</a></li>
                     <li><a href="#benefits">Benefits</a></li>
+                    <li><a href="#faq">FAQ</a></li>
                 </ul>
             </div>
             <div class="footer-section">
                 <h3>Support</h3>
                 <ul>
-                    <li><a href="#faq">FAQ</a></li>
                     <li><a href="#contact">Contact Us</a></li>
                     <li><a href="#privacy">Privacy Policy</a></li>
                     <li><a href="#terms">Terms of Service</a></li>
@@ -951,98 +1298,154 @@
             </div>
         </div>
         <div class="footer-bottom">
-            <p>&copy; 2025 Shoppe Club. All Rights Reserved. Built on Rixile’s proven engine, re-imagined for ecommerce.</p>
+            <p>&copy; 2025 Shoppe Club. All Rights Reserved. Built on Shoppe Club's proven engine, re-imagined for ecommerce.</p>
         </div>
     </div>
 </footer>
 
 <script>
-	// Navbar scroll effect
-	window.addEventListener('scroll', function() {
-		const navbar = document.getElementById('navbar');
-		if (window.scrollY > 50) {
-			navbar.classList.add('scrolled');
-		} else {
-			navbar.classList.remove('scrolled');
-		}
-	});
+    // Navbar scroll effect
+    window.addEventListener('scroll', function() {
+        const navbar = document.getElementById('navbar');
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
 
-	// Back to top button functionality
-	const backToTopBtn = document.getElementById('backToTop');
-	
-	window.addEventListener('scroll', function() {
-		if (window.pageYOffset > 300) {
-			backToTopBtn.classList.add('show');
-		} else {
-			backToTopBtn.classList.remove('show');
-		}
-	});
+    // Mobile menu functionality
+    const mobileMenu = document.getElementById('mobileMenu');
+    const mobileNav = document.getElementById('mobileNav');
+    const mobileClose = document.getElementById('mobileClose');
 
-	backToTopBtn.addEventListener('click', function() {
-		window.scrollTo({
-			top: 0,
-			behavior: 'smooth'
-		});
-	});
+    mobileMenu.addEventListener('click', function() {
+        mobileNav.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    });
 
-	// Animate elements on scroll
-	const observerOptions = {
-		threshold: 0.1,
-		rootMargin: '0px 0px -50px 0px'
-	};
+    mobileClose.addEventListener('click', function() {
+        mobileNav.classList.remove('active');
+        document.body.style.overflow = '';
+    });
 
-	const observer = new IntersectionObserver(function(entries) {
-		entries.forEach(entry => {
-			if (entry.isIntersecting) {
-				entry.target.style.animationDelay = Math.random() * 0.3 + 's';
-				entry.target.classList.add('animate-on-scroll');
-				observer.unobserve(entry.target);
-			}
-		});
-	}, observerOptions);
+    // Close mobile menu when clicking on links
+    mobileNav.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    });
 
-	document.querySelectorAll('.feature-card, .step-card, .benefit-item').forEach(el => {
-		observer.observe(el);
-	});
+    // Back to top button functionality
+    const backToTopBtn = document.getElementById('backToTop');
+    
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+            backToTopBtn.classList.add('show');
+        } else {
+            backToTopBtn.classList.remove('show');
+        }
+    });
 
-	// Smooth scroll for navigation links
-	document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-		anchor.addEventListener('click', function (e) {
-			e.preventDefault();
-			const target = document.querySelector(this.getAttribute('href'));
-			if (target) {
-				target.scrollIntoView({
-					behavior: 'smooth',
-					block: 'start'
-				});
-			}
-		});
-	});
+    backToTopBtn.addEventListener('click', function() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
 
-	// Mobile menu toggle
-	document.querySelector('.mobile-menu').addEventListener('click', function() {
-		const navLinks = document.querySelector('.nav-links');
-		navLinks.style.display = navLinks.style.display === 'flex' ? 'none' : 'flex';
-	});
+    // FAQ Accordion functionality
+    document.querySelectorAll('.faq-question').forEach(question => {
+        question.addEventListener('click', function() {
+            const answer = this.nextElementSibling;
+            const isActive = this.classList.contains('active');
 
-	// Add parallax effect to hero section
-	window.addEventListener('scroll', function() {
-		const scrolled = window.pageYOffset;
-		const hero = document.querySelector('.hero');
-		const rate = scrolled * -0.5;
-		hero.style.transform = `translateY(${rate}px)`;
-	});
+            // Close all other FAQ items
+            document.querySelectorAll('.faq-question').forEach(q => {
+                q.classList.remove('active');
+                q.nextElementSibling.classList.remove('active');
+            });
 
-	// Add loading animation
-	window.addEventListener('load', function() {
-		document.body.classList.add('loaded');
-	});
+            // Toggle current FAQ item
+            if (!isActive) {
+                this.classList.add('active');
+                answer.classList.add('active');
+            }
+        });
+    });
 
-	// Mobile menu toggle functionality
-	document.querySelector('.mobile-menu').addEventListener('click', function() {
-		const navLinks = document.querySelector('.nav-links');
-		navLinks.classList.toggle('show');
-	});
+    // Animate elements on scroll
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.animationDelay = Math.random() * 0.3 + 's';
+                entry.target.classList.add('animate-on-scroll');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.feature-card, .step-card, .benefit-item').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Smooth scroll for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                const offsetTop = target.offsetTop - 80; // Account for fixed navbar
+                window.scrollTo({
+                    top: offsetTop,
+                    behavior: 'smooth'
+                });
+            }
+        });
+    });
+
+    // Add loading animation
+    window.addEventListener('load', function() {
+        document.body.classList.add('loaded');
+    });
+
+    // Prevent body scroll when mobile menu is open
+    function toggleBodyScroll(disable) {
+        if (disable) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Enhanced mobile menu handling
+    let isMenuOpen = false;
+    
+    mobileMenu.addEventListener('click', function() {
+        isMenuOpen = !isMenuOpen;
+        if (isMenuOpen) {
+            mobileNav.classList.add('active');
+            toggleBodyScroll(true);
+        } else {
+            mobileNav.classList.remove('active');
+            toggleBodyScroll(false);
+        }
+    });
+
+    // Close menu when clicking outside
+    mobileNav.addEventListener('click', function(e) {
+        if (e.target === mobileNav) {
+            mobileNav.classList.remove('active');
+            toggleBodyScroll(false);
+            isMenuOpen = false;
+        }
+    });
 </script>
 </body>
 </html>
