@@ -795,7 +795,7 @@ function buildNavLink($targetPage, $currentPage = '') {
                                         </svg>
                                     </div>
                                     <div>
-                                        <p class="font-bold">Account Inactive</p>
+                                        <p class="font-bold">Rank Inactive</p>
                                         <p class="text-sm">Your account is currently inactive. To activate your account and access all features, please <a href="dashboard.php?page=store" class="underline font-semibold">purchase a package</a>.</p>
                                     </div>
                                 </div>
