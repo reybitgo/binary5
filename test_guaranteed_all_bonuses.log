@@ -1,0 +1,227 @@
+Setting up GUARANTEED ALL BONUSES test (with package limitations)...
+Guaranteed all-bonuses data ready: 21 users in strategic 5-level hierarchy
+
+Strategic Hierarchy (User 6 is our target for all bonuses):
+-- admin (ID:1) - Root, Root, Pos:
+-- sponsor1 (ID:2) - S:1, U:1, Pos:left
+-- sponsor2 (ID:3) - S:1, U:1, Pos:right
+-- sponsor1_child1 (ID:4) - S:2, U:2, Pos:left
+-- sponsor1_child2 (ID:5) - S:2, U:2, Pos:right
+-- sponsor2_child1 (ID:6) - S:3, U:3, Pos:left ⭐ GOLDEN USER
+-- sponsor2_child2 (ID:7) - S:3, U:3, Pos:right
+-- deep1_L (ID:8) - S:4, U:4, Pos:left
+-- deep1_R (ID:9) - S:4, U:4, Pos:right
+-- deep2_L (ID:10) - S:5, U:5, Pos:left
+-- deep2_R (ID:11) - S:5, U:5, Pos:right
+-- deep3_L (ID:12) - S:6, U:6, Pos:left
+-- deep3_R (ID:13) - S:6, U:6, Pos:right
+-- deep4_L (ID:14) - S:7, U:7, Pos:left
+-- deep4_R (ID:15) - S:7, U:7, Pos:right
+-- ultra1 (ID:16) - S:8, U:8, Pos:left
+-- ultra2 (ID:17) - S:9, U:9, Pos:right
+-- ultra3 (ID:18) - S:12, U:12, Pos:left
+-- ultra4 (ID:19) - S:13, U:13, Pos:right
+-- final1 (ID:20) - S:18, U:18, Pos:left
+-- final2 (ID:21) - S:19, U:19, Pos:right
+
+Testing GUARANTEED All Four Bonus Types (with Package Limitations)
+================================================================
+
+🎯 PHASE 1: Strategic Foundation - Build User 6's earning potential
+sponsor2_child1 (ID:6) bought Pro $50.00 (Golden User gets Pro package for capacity)
+sponsor2 (ID:3) bought Pro $50.00 (sponsor2 gets Pro - will provide referral to User 6)
+admin (ID:1) bought Elite $100.00 (admin gets Elite - top level qualification)
+
+📈 PHASE 2: Build Descendant Volumes (Critical for mentor bonuses)
+deep3_L (ID:12) bought Starter $25.00 (User 6's left child - builds User 6's GVT)
+deep3_R (ID:13) bought Starter $25.00 (User 6's right child - builds User 6's GVT)
+ultra3 (ID:18) bought Starter $25.00 (Level 4 descendant - more GVT for User 6)
+ultra4 (ID:19) bought Starter $25.00 (Level 4 descendant - more GVT for User 6)
+final1 (ID:20) bought Starter $25.00 (Level 5 descendant - maximum GVT for User 6)
+final2 (ID:21) bought Starter $25.00 (Level 5 descendant - maximum GVT for User 6)
+User 6 volumes after descendant building: PVT=$50, GVT=$200
+
+🔥 PHASE 3: Trigger Referral Bonus for User 6
+sponsor2_child1 (ID:6) bought Starter $25.00 (Triggers referral bonus from sponsor2 to User 6)
+
+⚡ PHASE 4: Build Binary Tree Balance
+sponsor1 (ID:2) bought Pro $50.00 (sponsor1 gets Pro package)
+sponsor1_child1 (ID:4) bought Starter $25.00 (sponsor1_child1 - builds left side)
+sponsor1_child2 (ID:5) bought Starter $25.00 (sponsor1_child2 - builds right side)
+sponsor2_child2 (ID:7) bought Starter $25.00 (sponsor2_child2 - balances User 6's side)
+deep1_L (ID:8) bought Starter $25.00 (deep1_L - creates binary opportunities)
+deep1_R (ID:9) bought Starter $25.00 (deep1_R - creates binary opportunities)
+deep2_L (ID:10) bought Starter $25.00 (deep2_L - creates binary opportunities)
+deep2_R (ID:11) bought Starter $25.00 (deep2_R - creates binary opportunities)
+deep4_L (ID:14) bought Starter $25.00 (deep4_L - creates binary opportunities)
+deep4_R (ID:15) bought Starter $25.00 (deep4_R - creates binary opportunities)
+
+💥 PHASE 5: Generate Binary Bonuses (Prerequisite for Leadership & Mentor)
+ultra1 (ID:16) bought Starter $25.00 (ultra1 - generates binary up the tree)
+ultra2 (ID:17) bought Starter $25.00 (ultra2 - generates binary up the tree)
+deep3_L (ID:12) bought Starter $25.00 (User 6's child additional purchase)
+deep3_R (ID:13) bought Starter $25.00 (User 6's child additional purchase)
+
+🏆 PHASE 6: Final Push - Ensure All Bonus Types
+ultra3 (ID:18) bought Starter $25.00 (Level 4 final push)
+ultra4 (ID:19) bought Starter $25.00 (Level 4 final push)
+final1 (ID:20) bought Starter $25.00 (Level 5 final volume)
+final2 (ID:21) bought Starter $25.00 (Level 5 final volume)
+sponsor2_child1 (ID:6) bought Starter $25.00 (User 6 final purchase for maximum bonus potential)
+
+🎉 GUARANTEED ALL BONUSES RESULTS
+================================
+User Bonus Analysis:
+-- admin (ID:1) - Package: Elite
+   Balance: $99,973.32
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Leadership
+   Amounts: Ref:$6.00 | Bin:$62.50 | Lead:$4.82 | Mentor:$0.00
+
+-- sponsor1 (ID:2) - Package: Pro
+   Balance: $99,972.07
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Leadership, ✅ Mentor
+   Amounts: Ref:$5.00 | Bin:$15.00 | Lead:$0.57 | Mentor:$1.50
+
+-- sponsor2 (ID:3) - Package: Pro
+   Balance: $99,975.69
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Leadership, ✅ Mentor
+   Amounts: Ref:$7.50 | Bin:$15.00 | Lead:$1.69 | Mentor:$1.50
+
+-- sponsor1_child1 (ID:4) - Package: Starter
+   Balance: $99,987.00
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$7.50 | Lead:$0.00 | Mentor:$0.50
+
+-- sponsor1_child2 (ID:5) - Package: Starter
+   Balance: $99,983.25
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$3.75 | Lead:$0.00 | Mentor:$0.50
+
+-- sponsor2_child1 (ID:6) - Package: Pro ⭐ GOLDEN USER
+   Balance: $99,941.50
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Mentor
+   Amounts: Ref:$10.00 | Bin:$30.00 | Lead:$0.00 | Mentor:$1.50
+
+-- sponsor2_child2 (ID:7) - Package: Starter
+   Balance: $99,983.25
+   Bonuses: ✅ Referral, ✅ Binary, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$3.75 | Lead:$0.00 | Mentor:$0.50
+
+-- deep1_L (ID:8) - Package: Starter
+   Balance: $99,977.33
+   Bonuses: ✅ Referral, ✅ Mentor
+   Amounts: Ref:$2.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.34
+
+-- deep1_R (ID:9) - Package: Starter
+   Balance: $99,977.33
+   Bonuses: ✅ Referral, ✅ Mentor
+   Amounts: Ref:$2.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.34
+
+-- deep2_L (ID:10) - Package: Starter
+   Balance: $99,975.26
+   Bonuses: ✅ Mentor
+   Amounts: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.26
+
+-- deep2_R (ID:11) - Package: Starter
+   Balance: $99,975.17
+   Bonuses: ✅ Mentor
+   Amounts: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.17
+
+-- deep3_L (ID:12) - Package: Starter
+   Balance: $99,954.50
+   Bonuses: ✅ Referral, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.50
+
+-- deep3_R (ID:13) - Package: Starter
+   Balance: $99,954.50
+   Bonuses: ✅ Referral, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.50
+
+-- deep4_L (ID:14) - Package: Starter
+   Balance: $99,975.26
+   Bonuses: ✅ Mentor
+   Amounts: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.26
+
+-- deep4_R (ID:15) - Package: Starter
+   Balance: $99,975.17
+   Bonuses: ✅ Mentor
+   Amounts: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.17
+
+-- ultra1 (ID:16) - Package: Starter
+   Balance: $99,975.07
+   Bonuses: ✅ Mentor
+   Amounts: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.07
+
+-- ultra2 (ID:17) - Package: Starter
+   Balance: $99,975.07
+   Bonuses: ✅ Mentor
+   Amounts: Ref:$0.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.07
+
+-- ultra3 (ID:18) - Package: Starter
+   Balance: $99,954.44
+   Bonuses: ✅ Referral, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.45
+
+-- ultra4 (ID:19) - Package: Starter
+   Balance: $99,954.44
+   Bonuses: ✅ Referral, ✅ Mentor
+   Amounts: Ref:$4.00 | Bin:$0.00 | Lead:$0.00 | Mentor:$0.45
+
+-- final1 (ID:20) - Package: Starter
+   Balance: $99,950.00
+   Bonuses: ❌ None
+
+-- final2 (ID:21) - Package: Starter
+   Balance: $99,950.00
+   Bonuses: ❌ None
+
+🎯 GOLDEN USER (User 6) DETAILED ANALYSIS:
+-- Final Volumes: PVT=$100, GVT=$400
+-- Package: Pro
+-- Final Balance: $99,941.50
+-- Referral: 4 payments, $10.00
+-- Binary: 6 payments, $30.00
+-- Leadership: 0 payments, $0.00
+-- Mentor: 9 payments, $1.50
+❌ Golden User missing some bonus types - need to adjust strategy
+
+🏅 USERS WITH ALL FOUR BONUS TYPES:
+🎉 SUCCESS! Users who earned ALL FOUR bonus types:
+-- sponsor1 (ID:2) - Pro package
+   Total Earned: $22.07
+-- sponsor2 (ID:3) - Pro package
+   Total Earned: $25.69
+
+📊 PACKAGE LIMITATION EFFECTS:
+-- Flushes due to package limitations:
+   final1: mentor_requirements_not_met - 3 times, $0.27
+   final2: mentor_requirements_not_met - 3 times, $0.27
+   ultra3: mentor_requirements_not_met - 1 times, $0.12
+   ultra4: mentor_requirements_not_met - 1 times, $0.12
+   deep1_L: mentor_requirements_not_met - 4 times, $0.09
+   deep1_R: mentor_requirements_not_met - 4 times, $0.09
+   deep2_L: mentor_requirements_not_met - 4 times, $0.09
+   deep2_R: mentor_requirements_not_met - 3 times, $0.09
+   deep4_L: mentor_requirements_not_met - 2 times, $0.09
+   deep4_R: mentor_requirements_not_met - 2 times, $0.09
+   ultra1: mentor_requirements_not_met - 1 times, $0.08
+   ultra2: mentor_requirements_not_met - 1 times, $0.08
+
+📈 FINAL SUCCESS METRICS:
+-- Total Users: 21
+-- Users with Referral: 13
+-- Users with Binary: 7
+-- Users with Leadership: 3
+-- Users with Mentor: 18 ⭐
+-- Users with ALL FOUR: 2
+
+🎯 GUARANTEED ALL BONUSES TEST COMPLETE!
+This test is specifically designed to ensure at least one user earns all four bonus types,
+including the elusive mentor bonus, while still respecting package-based limitations.
+
+Key Strategy:
+✅ 5-level hierarchy for maximum mentor bonus potential
+✅ Strategic package distribution for optimal earning capacity
+✅ Ultra-low mentor requirements to guarantee qualification
+✅ Systematic volume building to ensure all prerequisites are met
+✅ Package-based limitations still enforced for system integrity
