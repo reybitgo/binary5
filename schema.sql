@@ -16,7 +16,7 @@ CREATE TABLE users (
     upline_id INT DEFAULT NULL,
     position ENUM('left', 'right') DEFAULT NULL,
     left_count INT DEFAULT 0,
-    right_count INT DEFAULT 0,
+    right_count INT DEFAULT 0,  
     pairs_today INT DEFAULT 0,
     role ENUM('user', 'admin') DEFAULT 'user',
     status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
@@ -315,7 +315,7 @@ VALUES
 ('Live Workshop Pass', 49.99, 'https://cdn.example.com/workshop.jpg', 'Interactive online session', 'Join a 3-hour live workshop with Q&A and worksheets.', 5, 30);
 
 -- Add admin_logs table to track administrative actions
-CREATE TABLE IF NOT EXISTS admin_logs (
+CREATE TABLE admin_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     admin_id INT NOT NULL,
     action VARCHAR(100) NOT NULL,
@@ -327,3 +327,19 @@ CREATE TABLE IF NOT EXISTS admin_logs (
     INDEX idx_action (action),
     INDEX idx_created_at (created_at)
 );
+
+CREATE TABLE pending_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(12,2) NOT NULL,
+    total_amount DECIMAL(12,2) NOT NULL,
+    affiliate_id INT NULL,
+    status ENUM('pending_payment', 'paid', 'cancelled') DEFAULT 'pending_payment',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (affiliate_id) REFERENCES users(id) ON DELETE SET NULL
+)

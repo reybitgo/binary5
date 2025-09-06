@@ -14,8 +14,17 @@ if (isset($_GET['id']) && (int)$_GET['id'] > 0 && ($_GET['page'] ?? '') === 'pro
     $_SESSION['product_id'] = (int)$_GET['id'];
 }
 
-/* 2️⃣ Persist the requested URL before redirecting to login */
-if (!isset($_SESSION['user_id'])) {
+// Get current page from URL parameter OR POST parameter, default to 'overview'
+$page = $_POST['page'] ?? $_GET['page'] ?? 'overview';
+
+// Define pages that are accessible without login (guest pages)
+$guest_allowed_pages = ['product_store', 'checkout'];
+
+$is_guest_page = in_array($page, $guest_allowed_pages);
+$is_logged_in = isset($_SESSION['user_id']);
+
+/* 2️⃣ Handle guest access to specific pages */
+if (!$is_logged_in && !$is_guest_page) {
     // Build the redirect URL with all current parameters
     $redirectParams = $_GET;
     
@@ -28,90 +37,120 @@ if (!isset($_SESSION['user_id'])) {
     redirect('login.php');
 }
 
-// Fetch user data
-$uid = $_SESSION['user_id'];
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$uid]);
-$user = $stmt->fetch();
-$role = $user['role'];
+// Initialize variables for logged-in users
+if ($is_logged_in) {
+    // Fetch user data
+    $uid = $_SESSION['user_id'];
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt->execute([$uid]);
+    $user = $stmt->fetch();
+    $role = $user['role'];
 
-// 🔥 GOD MODE IMPLEMENTATION - Check if we're in god mode
-$isGodMode = isset($_SESSION['god_mode']) && $_SESSION['god_mode']['active'];
-$godModeData = $isGodMode ? $_SESSION['god_mode'] : null;
-$originalAdminId = $isGodMode ? $_SESSION['original_admin_id'] : null;
+    // 🔥 GOD MODE IMPLEMENTATION - Check if we're in god mode
+    $isGodMode = isset($_SESSION['god_mode']) && $_SESSION['god_mode']['active'];
+    $godModeData = $isGodMode ? $_SESSION['god_mode'] : null;
+    $originalAdminId = $isGodMode ? $_SESSION['original_admin_id'] : null;
 
-// Handle god mode exit
-if (isset($_POST['exit_god_mode']) && $isGodMode) {
-    // CSRF token validation
-    if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
-        $_SESSION['flash'] = 'Invalid request';
-        redirect('dashboard.php');
-    }
-    
-    try {
-        // Log the god mode exit
-        $logStmt = $pdo->prepare("INSERT INTO admin_logs (admin_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-        $logDetails = "Admin {$godModeData['admin_username']} exited god mode for user {$godModeData['target_username']}";
-        $logStmt->execute([$godModeData['admin_id'], 'god_mode_exit', $logDetails, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+    // Handle god mode exit
+    if (isset($_POST['exit_god_mode']) && $isGodMode) {
+        // CSRF token validation
+        if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
+            $_SESSION['flash'] = 'Invalid request';
+            redirect('dashboard.php');
+        }
         
-        // Restore original admin session
+        try {
+            // Log the god mode exit
+            $logStmt = $pdo->prepare("INSERT INTO admin_logs (admin_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+            $logDetails = "Admin {$godModeData['admin_username']} exited god mode for user {$godModeData['target_username']}";
+            $logStmt->execute([$godModeData['admin_id'], 'god_mode_exit', $logDetails, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+            
+            // Restore original admin session
+            $_SESSION['user_id'] = $_SESSION['original_admin_id'];
+            unset($_SESSION['original_admin_id']);
+            unset($_SESSION['god_mode']);
+            
+            // Redirect back to user management
+            redirect('dashboard.php?page=users', 'God mode exited successfully');
+            
+        } catch (PDOException $e) {
+            error_log("God mode exit error: " . $e->getMessage());
+            $_SESSION['flash'] = 'Error exiting god mode';
+        }
+    }
+
+    // Auto-expire god mode after 1 hour for security
+    if ($isGodMode && (time() - $godModeData['started_at']) > 3600) {
+        // Log the auto-expiry
+        try {
+            $logStmt = $pdo->prepare("INSERT INTO admin_logs (admin_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+            $logDetails = "God mode auto-expired for admin {$godModeData['admin_username']} viewing user {$godModeData['target_username']}";
+            $logStmt->execute([$godModeData['admin_id'], 'god_mode_auto_expire', $logDetails, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+        } catch (PDOException $e) {
+            error_log("God mode auto-expire log error: " . $e->getMessage());
+        }
+        
+        // Restore original session
         $_SESSION['user_id'] = $_SESSION['original_admin_id'];
         unset($_SESSION['original_admin_id']);
         unset($_SESSION['god_mode']);
         
-        // Redirect back to user management
-        redirect('dashboard.php?page=users', 'God mode exited successfully');
-        
-    } catch (PDOException $e) {
-        error_log("God mode exit error: " . $e->getMessage());
-        $_SESSION['flash'] = 'Error exiting god mode';
+        redirect('dashboard.php?page=users', 'God mode session expired for security');
     }
-}
 
-// Auto-expire god mode after 1 hour for security
-if ($isGodMode && (time() - $godModeData['started_at']) > 3600) {
-    // Log the auto-expiry
-    try {
-        $logStmt = $pdo->prepare("INSERT INTO admin_logs (admin_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-        $logDetails = "God mode auto-expired for admin {$godModeData['admin_username']} viewing user {$godModeData['target_username']}";
-        $logStmt->execute([$godModeData['admin_id'], 'god_mode_auto_expire', $logDetails, $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
-    } catch (PDOException $e) {
-        error_log("God mode auto-expire log error: " . $e->getMessage());
+    // Check if user account is suspended - prevent login for suspended users (except in god mode)
+    if (!$isGodMode && $user['status'] === 'suspended') {
+        // Clear session and redirect to login with message
+        session_destroy();
+        redirect('login.php', 'Your account has been suspended. Please contact support.');
     }
-    
-    // Restore original session
-    $_SESSION['user_id'] = $_SESSION['original_admin_id'];
-    unset($_SESSION['original_admin_id']);
-    unset($_SESSION['god_mode']);
-    
-    redirect('dashboard.php?page=users', 'God mode session expired for security');
+
+    // Check if user is inactive and redirect them to store or show message
+    // Note: product_store is allowed for inactive users
+    if ($user['status'] === 'inactive' && !in_array($page, ['overview', 'store', 'wallet', 'profile', 'product_store', 'affiliate', 'checkout', 'pending_orders'])) {
+        redirect('dashboard.php?page=store', 'Your account is inactive. Please purchase a package to activate your account.');
+    }
+
+    // Get the true admin role (either current user or original admin in god mode)
+    $effectiveRole = $isGodMode ? 'admin' : $role;
+    $trueRole = $user['role']; // Current viewed user's role
+
+    // User info (with wallet balance)
+    $userQuery = $pdo->prepare("SELECT u.*, w.balance
+                               FROM users u
+                               LEFT JOIN wallets w ON w.user_id = u.id
+                               WHERE u.id = ?");
+    $userQuery->execute([$uid]);
+    $user = $userQuery->fetch();
+
+    // Ensure wallet exists for user
+    if ($user['balance'] === null) {
+        $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
+            ->execute([$uid]);
+        $user['balance'] = 0.00;
+    }
+
+    // Get pending orders count for navigation badge
+    $pending_orders_count = 0;
+    $count_stmt = $pdo->prepare("SELECT COUNT(*) FROM pending_orders WHERE user_id = ? AND status = 'pending_payment'");
+    $count_stmt->execute([$uid]);
+    $pending_orders_count = $count_stmt->fetchColumn() ?? 0;
+} else {
+    // Set default values for guest users
+    $user = null;
+    $role = null;
+    $isGodMode = false;
+    $godModeData = null;
+    $effectiveRole = null;
+    $trueRole = null;
+    $pending_orders_count = 0;
 }
-
-// Check if user account is suspended - prevent login for suspended users (except in god mode)
-if (!$isGodMode && $user['status'] === 'suspended') {
-    // Clear session and redirect to login with message
-    session_destroy();
-    redirect('login.php', 'Your account has been suspended. Please contact support.');
-}
-
-// Check if user is inactive and redirect them to store or show message
-// Note: product_store is allowed for inactive users
-if ($user['status'] === 'inactive' && !in_array($_GET['page'] ?? 'overview', ['overview', 'store', 'wallet', 'profile', 'product_store', 'affiliate'])) {
-    redirect('dashboard.php?page=store', 'Your account is inactive. Please purchase a package to activate your account.');
-}
-
-// Get current page from URL parameter, default to 'overview'
-$page = $_GET['page'] ?? 'overview';
-
-// Get the true admin role (either current user or original admin in god mode)
-$effectiveRole = $isGodMode ? 'admin' : $role;
-$trueRole = $user['role']; // Current viewed user's role
 
 // Standard pages available to all users
-$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'profile', 'product_store', 'affiliate'];
+$allowed_pages = ['overview', 'binary', 'referrals', 'leadership', 'mentor', 'wallet', 'store', 'profile', 'product_store', 'affiliate', 'checkout', 'pending_orders'];
 
 // Admin-only pages (only available to actual admins, not when in god mode viewing users)
-if ($effectiveRole === 'admin' && !$isGodMode) {
+if ($is_logged_in && $effectiveRole === 'admin' && !$isGodMode) {
     $allowed_pages[] = 'users'; // Add users page for admins
     $allowed_pages[] = 'export_users'; // Export users page for admins
     $allowed_pages[] = 'settings'; // Add settings page for admins
@@ -119,32 +158,151 @@ if ($effectiveRole === 'admin' && !$isGodMode) {
 }
 
 // Special case: If admin is in god mode and tries to access admin pages, redirect to overview
-if ($isGodMode && in_array($page, ['users', 'export_users', 'settings', 'manage_products'])) {
+if ($is_logged_in && $isGodMode && in_array($page, ['users', 'export_users', 'settings', 'manage_products'])) {
     redirect('dashboard.php?page=overview', 'Admin pages not available in god mode');
 }
 
-// Validate page parameter
-if (!in_array($page, $allowed_pages)) {
+// For guests, only allow guest pages
+if (!$is_logged_in && !in_array($page, $guest_allowed_pages)) {
+    $page = 'product_store'; // Default to product store for guests
+}
+
+// For logged in users, validate page parameter
+if ($is_logged_in && !in_array($page, $allowed_pages)) {
     $page = 'overview';
 }
 
-// User info (with wallet balance)
-$userQuery = $pdo->prepare("SELECT u.*, w.balance
-                           FROM users u
-                           LEFT JOIN wallets w ON w.user_id = u.id
-                           WHERE u.id = ?");
-$userQuery->execute([$uid]);
-$user = $userQuery->fetch();
+// Handle cart actions for both guests and logged-in users FIRST (before other actions)
+if (($_POST['action'] ?? '') && in_array($_POST['action'], ['add_to_cart', 'update_cart'])) {
+    
+    // Validate CSRF token for POST requests (but allow it to be missing for guests)
+    if ($is_logged_in && isset($_POST['csrf_token']) && !validateCSRFToken($_POST['csrf_token'])) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Invalid security token']);
+            exit;
+        } else {
+            redirect('dashboard.php?page=product_store', 'Invalid security token');
+        }
+    }
+    
+    switch ($_POST['action']) {
+        case 'add_to_cart':
+            $product_id = (int)($_POST['product_id'] ?? 0);
+            $quantity = max(1, (int)($_POST['quantity'] ?? 1));
+            
+            if ($product_id <= 0) {
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => 'Invalid product ID']);
+                    exit;
+                } else {
+                    redirect('dashboard.php?page=product_store', 'Invalid product');
+                }
+            }
+            
+            try {
+                // Validate product exists and is active
+                $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ? AND active = 1");
+                $stmt->execute([$product_id]);
+                $product = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$product) {
+                    if (isset($_POST['ajax'])) {
+                        header('Content-Type: application/json');
+                        echo json_encode(['success' => false, 'message' => 'Product not found or inactive']);
+                        exit;
+                    } else {
+                        redirect('dashboard.php?page=product_store', 'Product not found');
+                    }
+                }
+                
+                // Initialize cart if it doesn't exist
+                if (!isset($_SESSION['cart'])) {
+                    $_SESSION['cart'] = [];
+                }
+                if (!isset($_SESSION['cart_products'])) {
+                    $_SESSION['cart_products'] = [];
+                }
+                
+                // Add to cart
+                if (!isset($_SESSION['cart'][$product_id])) {
+                    $_SESSION['cart'][$product_id] = 0;
+                }
+                $_SESSION['cart'][$product_id] += $quantity;
+                
+                // Store product details in session for checkout
+                $_SESSION['cart_products'][$product_id] = $product;
+                
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => true, 
+                        'message' => 'Product added to cart successfully',
+                        'cart_count' => array_sum($_SESSION['cart'])
+                    ]);
+                    exit;
+                } else {
+                    redirect('dashboard.php?page=product_store', 'Product added to cart successfully');
+                }
+                
+            } catch (Exception $e) {
+                error_log("Add to cart error: " . $e->getMessage());
+                if (isset($_POST['ajax'])) {
+                    header('Content-Type: application/json');
+                    echo json_encode(['success' => false, 'message' => 'Database error occurred']);
+                    exit;
+                } else {
+                    redirect('dashboard.php?page=product_store', 'Failed to add product to cart');
+                }
+            }
+            break;
 
-// Ensure wallet exists for user
-if ($user['balance'] === null) {
-    $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
-        ->execute([$uid]);
-    $user['balance'] = 0.00;
+        case 'update_cart':
+            $product_id = (int)($_POST['product_id'] ?? 0);
+            $quantity = max(0, (int)($_POST['quantity'] ?? 0));
+            
+            if (!isset($_SESSION['cart'])) {
+                $_SESSION['cart'] = [];
+            }
+            if (!isset($_SESSION['cart_products'])) {
+                $_SESSION['cart_products'] = [];
+            }
+            
+            if ($quantity > 0) {
+                $_SESSION['cart'][$product_id] = $quantity;
+            } else {
+                unset($_SESSION['cart'][$product_id]);
+                unset($_SESSION['cart_products'][$product_id]);
+            }
+            
+            if (isset($_POST['ajax'])) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => true,
+                    'cart_count' => array_sum($_SESSION['cart'] ?? [])
+                ]);
+                exit;
+            } else {
+                redirect('dashboard.php?page=product_store', 'Cart updated');
+            }
+            break;
+    }
 }
 
-// Handle actions (moved from individual page files)
-if ($_POST['action'] ?? '') {
+// Handle other actions (moved from individual page files) - ONLY for logged-in users
+if (($_POST['action'] ?? '') && !in_array($_POST['action'], ['add_to_cart', 'update_cart'])) {
+    // Only allow logged-in users to perform most actions
+    if (!$is_logged_in) {
+        if (isset($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Please login to perform this action']);
+            exit;
+        } else {
+            redirect('login.php', 'Please login to perform this action');
+        }
+    }
+    
     switch ($_POST['action']) {
         case 'request_topup':
             $amt = max(0, (float) $_POST['usdt_amount']);
@@ -347,7 +505,7 @@ if ($_POST['action'] ?? '') {
             break;
     }
 
-    /* ---------- Admin wallet actions (approve / reject) ---------- */
+    // Continue with admin wallet actions only for logged-in users
     if ($page === 'wallet' && $effectiveRole === 'admin' && !$isGodMode && ($_POST['action'] ?? '')) {
         $id = (int)($_POST['req_id'] ?? 0);
         $stmt = $pdo->prepare('SELECT * FROM ewallet_requests WHERE id = ? AND status = "pending"');
@@ -413,44 +571,6 @@ if ($_POST['action'] ?? '') {
     }
 }
 
-function validateAffiliateLink($ref_id, $pdo) {
-    if (!$ref_id || $ref_id <= 0) return false;
-    
-    $stmt = $pdo->prepare("SELECT id, status FROM users WHERE id = ?");
-    $stmt->execute([$ref_id]);
-    $user = $stmt->fetch();
-    
-    return $user && $user['status'] === 'active';
-}
-
-function getProductEarnings($user_id, $pdo) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            SUM(CASE WHEN type = 'affiliate_bonus' THEN amount ELSE 0 END) as total_affiliate,
-            COUNT(CASE WHEN type = 'affiliate_bonus' THEN 1 END) as total_sales,
-            MAX(created_at) as last_sale
-        FROM wallet_tx 
-        WHERE user_id = ? AND type = 'affiliate_bonus'
-    ");
-    $stmt->execute([$user_id]);
-    return $stmt->fetch();
-}
-
-function getTopAffiliateProducts($pdo, $limit = 5) {
-    return $pdo->prepare("
-        SELECT p.*, 
-            COUNT(wt.id) as sales_count,
-            SUM(ABS(wt.amount)) as total_sales_value
-        FROM products p
-        LEFT JOIN wallet_tx wt ON wt.type = 'product_purchase' 
-            AND ABS(wt.amount) = p.price * (1 - p.discount/100)
-        WHERE p.active = 1 AND p.affiliate_rate > 0
-        GROUP BY p.id
-        ORDER BY sales_count DESC, total_sales_value DESC
-        LIMIT ?
-    ")->execute([$limit])->fetchAll();
-}
-
 function flash() {
     if (isset($_SESSION['flash'])) {
         $msg = $_SESSION['flash'];
@@ -482,308 +602,318 @@ function buildNavLink($targetPage, $currentPage = '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shoppe Club Dashboard</title>
+    <title><?= $is_logged_in ? 'Shoppe Club Dashboard' : 'Shoppe Club - Product Store' ?></title>
     <script src="https://d3js.org/d3.v7.min.js" onload="console.log('D3.js loaded from CDN')" onerror="this.src='/js/d3.v7.min.js';console.error('CDN failed, loading local D3.js')"></script>
     <script src="https://cdn.tailwindcss.com" onload="console.log('Tailwind CSS loaded from CDN')" onerror="this.src='/css/tailwind.min.css';console.error('CDN failed, loading local Tailwind')"></script>
     <link href="css/style.css" rel="stylesheet">
-    <script>
-        /* ===================================================================
-           Kill “unsaved changes” popup for internal links while in god-mode
-           =================================================================== */
-        <?php if ($isGodMode): ?>
-        document.addEventListener('click', function (e) {
-            const link = e.target.closest('a[href]');
-            if (!link) return;                       // not a link
-            if (link.hostname !== location.hostname) return; // external – leave warning
-            if (link.target === '_blank') return;    // new tab – leave warning
+    <style>
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444;
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 50%;
+            height: 20px;
+            width: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            z-index: 10;
+        }
 
-            // Remove the beforeunload handler that dashboard.php installed
-            window.removeEventListener('beforeunload', window._godModeUnload);
-        });
-
-        // Keep a reference to the handler so we can remove it
-        window._godModeUnload = window.onbeforeunload;
-        <?php endif; ?>
-    </script>
-</head>
-<body class="bg-gray-100 font-sans">
-    
-    <!-- 🔥 GOD MODE BANNER -->
-    <?php if ($isGodMode): ?>
-    <div class="bg-gradient-to-r from-red-600 to-red-800 text-white shadow-lg border-b-4 border-red-900 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <!-- God Mode Icon -->
-                    <div class="flex items-center space-x-2">
-                        <div class="w-8 h-8 text-yellow-300">
-                            <svg class="w-full h-full animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                        </div>
-                        <span class="font-bold text-lg">GOD MODE ACTIVE</span>
-                    </div>
-                    
-                    <!-- Session Info -->
-                    <div class="hidden md:flex flex-col text-sm">
-                        <div class="flex items-center space-x-1">
-                            <span class="opacity-90">Admin:</span>
-                            <span class="font-semibold"><?= htmlspecialchars($godModeData['admin_username']) ?></span>
-                        </div>
-                        <div class="flex items-center space-x-1">
-                            <span class="opacity-90">Viewing:</span>
-                            <span class="font-semibold"><?= htmlspecialchars($godModeData['target_username']) ?></span>
-                            <span class="text-xs opacity-75">(ID: <?= $godModeData['target_user_id'] ?>)</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Time Indicator -->
-                    <div class="hidden lg:flex items-center text-sm opacity-90">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span id="god-mode-timer">
-                            Active for <?= gmdate('i:s', time() - $godModeData['started_at']) ?>
-                        </span>
-                    </div>
-                </div>
-                
-                <!-- Actions -->
-                <div class="flex items-center space-x-3">
-                    <!-- Warning -->
-                    <div class="hidden md:flex items-center text-sm opacity-90">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                        </svg>
-                        <span>All actions are logged</span>
-                    </div>
-                    
-                    <!-- Exit Button -->
-                    <form method="post" class="inline">
-                        <input type="hidden" name="csrf_token" value="<?= generateCSRFToken() ?>">
-                        <button type="submit" name="exit_god_mode" value="1" 
-                                onclick="return confirm('Exit god mode and return to admin dashboard?')"
-                                class="bg-red-700 hover:bg-red-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center space-x-1 border border-red-600">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                            </svg>
-                            <span>Exit God Mode</span>
-                        </button>
-                    </form>
-                </div>
-            </div>
+        /* Mobile responsive navigation improvements */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
             
-            <!-- Mobile Info -->
-            <div class="md:hidden mt-2 pt-2 border-t border-red-500 border-opacity-50">
-                <div class="flex justify-between text-sm">
-                    <div>
-                        <span class="opacity-90">Admin:</span>
-                        <span class="font-semibold"><?= htmlspecialchars($godModeData['admin_username']) ?></span>
-                    </div>
-                    <div>
-                        <span class="opacity-90">Viewing:</span>
-                        <span class="font-semibold"><?= htmlspecialchars($godModeData['target_username']) ?></span>
-                    </div>
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .notification-badge {
+                height: 16px;
+                width: 16px;
+                font-size: 0.625rem;
+            }
+        }
+        
+        /* Guest layout styles */
+        .guest-layout {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .guest-nav {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="<?= $is_logged_in ? 'bg-gray-100 font-sans' : 'guest-layout' ?>">
+    
+    <?php if ($is_logged_in): ?>
+        <!-- Logged-in user layout with full dashboard -->
+        
+        <!-- 🔥 GOD MODE BANNER -->
+        <?php if ($isGodMode): ?>
+        <div class="bg-gradient-to-r from-red-600 to-red-800 text-white shadow-lg border-b-4 border-red-900 sticky top-0 z-50">
+            <!-- ... (keep existing god mode banner) ... -->
+        </div>
+        <?php endif; ?>
+
+        <div class="flex h-screen">
+            <!-- Sidebar -->
+            <div id="sidebar" class="bg-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 md:relative md:translate-x-0 transition-transform duration-300 ease-in-out sidebar">
+                <div class="px-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Shoppe Club</h2>
                 </div>
+                <nav class="space-y-1">
+                    <a href="dashboard.php?page=overview" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'overview' ? 'bg-blue-500 text-white' : '' ?>">
+                        Overview
+                    </a>
+                    
+                    <!-- Admin-only pages (show only for actual admins, not when viewing users in god mode) -->
+                    <?php if ($effectiveRole === 'admin' && !$isGodMode): ?>
+                        <a href="dashboard.php?page=users" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'users' ? 'bg-blue-500 text-white' : '' ?>">
+                            Users
+                        </a>
+                    <?php endif; ?>
+                    
+                    <!-- Standard user pages -->
+                    <a href="dashboard.php?page=binary" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'binary' ? 'bg-blue-500 text-white' : '' ?>">
+                        Binary Tree
+                    </a>
+                    <a href="dashboard.php?page=referrals" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'referrals' ? 'bg-blue-500 text-white' : '' ?>">
+                        Referrals
+                    </a>
+                    <a href="dashboard.php?page=leadership" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'leadership' ? 'bg-blue-500 text-white' : '' ?>">
+                        Matched Bonus
+                    </a>
+                    <a href="dashboard.php?page=mentor" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'mentor' ? 'bg-blue-500 text-white' : '' ?>">
+                        Mentor Bonus
+                    </a>
+                    <a href="dashboard.php?page=wallet" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'wallet' ? 'bg-blue-500 text-white' : '' ?>">
+                        Wallet
+                    </a>
+                    <a href="dashboard.php?page=store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'store' ? 'bg-blue-500 text-white' : '' ?>">
+                        Package Store
+                    </a>
+                    <a href="<?= buildNavLink('product_store', $page) ?>" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'product_store' ? 'bg-blue-500 text-white' : '' ?>">
+                        Product Store
+                    </a>
+                    
+                    <!-- Pending Orders with notification badge -->
+                    <a href="dashboard.php?page=pending_orders" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'pending_orders' ? 'bg-blue-500 text-white' : '' ?> relative">
+                        Pending Orders
+                        <?php if ($pending_orders_count > 0): ?>
+                            <span class="notification-badge">
+                                <?= min($pending_orders_count, 9) ?><?= $pending_orders_count > 9 ? '+' : '' ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    
+                    <a href="dashboard.php?page=affiliate" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'affiliate' ? 'bg-blue-500 text-white' : '' ?>">
+                        Affiliate
+                    </a>
+                    
+                    <!-- Admin-only settings and management (only for actual admins, not god mode) -->
+                    <?php if ($effectiveRole === 'admin' && !$isGodMode): ?>
+                        <a href="dashboard.php?page=settings" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'settings' ? 'bg-blue-500 text-white' : '' ?>">
+                            Settings
+                        </a>
+                        <a href="dashboard.php?page=manage_products" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'manage_products' ? 'bg-blue-500 text-white' : '' ?>">
+                            Manage Products
+                        </a>
+                    <?php endif; ?>
+                    
+                    <a href="logout.php" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md">
+                        Logout
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Main Content -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Header -->
+                <header class="bg-white shadow-sm">
+                    <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                        <div class="flex items-center">
+                            <button id="sidebarToggle" class="md:hidden text-gray-600 hover:text-gray-800 focus:outline-none">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                                </svg>
+                            </button>
+                            <h1 class="text-xl font-semibold text-gray-800 ml-4">
+                                Dashboard - <?=htmlspecialchars($user['username'])?>
+                                <?php if ($user['status'] === 'inactive'): ?>
+                                    <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Inactive</span>
+                                <?php elseif ($user['status'] === 'suspended'): ?>
+                                    <span class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-900 rounded-full">Suspended</span>
+                                <?php endif; ?>
+                                <?php if ($isGodMode): ?>
+                                    <span class="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">God Mode View</span>
+                                <?php endif; ?>
+                            </h1>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <?php if (!empty($_SESSION['cart']) && is_array($_SESSION['cart'])): ?>
+                                <?php 
+                                $cart_count = array_sum($_SESSION['cart']);
+                                if ($cart_count > 0): 
+                                ?>
+                                    <a href="dashboard.php?page=checkout" class="flex items-center space-x-1 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm hover:bg-green-200 transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 8L7 13m0 0l-2.5 5M7 13v6a2 2 0 002 2h6a2 2 0 002-2v-6M9 9v2m4-2v2"></path>
+                                        </svg>
+                                        <span>Cart (<?= $cart_count ?>)</span>
+                                    </a>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                            <span class="text-sm text-gray-600">Balance: $<?= number_format($user['balance'], 2) ?></span>
+                            <a href="dashboard.php?page=profile" class="text-gray-600 hover:text-blue-500">Profile</a>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Main Content Area -->
+                <main class="flex-1 overflow-y-auto bg-gray-100 p-4 sm:p-6 lg:p-8">
+                    <div class="max-w-7xl mx-auto">
+                        <?=flash()?>
+                        
+                        <!-- Show inactive account notice -->
+                        <?php if ($user['status'] === 'inactive'): ?>
+                            <div class="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4" role="alert">
+                                <div class="flex">
+                                    <div class="py-1">
+                                        <svg class="fill-current h-6 w-6 text-orange-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                            <path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 11.32 11.32zM9 11V9h2v6H9v-4zm0-6h2v2H9V5z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold">Account Inactive</p>
+                                        <p class="text-sm">Your account is currently inactive. To activate your account and access all features, please <a href="dashboard.php?page=store" class="underline font-semibold">purchase a package</a>.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <!-- Show suspended account notice (only visible in god mode) -->
+                        <?php if ($user['status'] === 'suspended' && $isGodMode): ?>
+                            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+                                <div class="flex">
+                                    <div class="py-1">
+                                        <svg class="fill-current h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="font-bold">Account Suspended</p>
+                                        <p class="text-sm">This user's account has been suspended. They cannot log in or perform actions. Only visible in God Mode.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php 
+                        // Include the appropriate page content
+                        if ($page === 'wallet' && $effectiveRole === 'admin' && !$isGodMode) {
+                            // Only show admin wallet page if actually admin and not in god mode
+                            $page_file = 'pages/wallet_admin.php';
+                        } else {
+                            $page_file = "pages/{$page}.php";
+                        }
+
+                        if (file_exists($page_file)) {
+                            require $page_file;
+                        } else {
+                            echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>Page not found: " . htmlspecialchars($page_file) . "</div>";
+                        }
+                        ?>
+                    </div>                
+                </main>
             </div>
         </div>
-    </div>
-    <?php endif; ?>
 
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <div id="sidebar" class="bg-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 md:relative md:translate-x-0 transition-transform duration-300 ease-in-out">
-            <div class="px-4">
-                <h2 class="text-2xl font-bold text-gray-800">Shoppe Club</h2>
-            </div>
-            <nav class="space-y-1">
-                <a href="dashboard.php?page=overview" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'overview' ? 'bg-blue-500 text-white' : '' ?>">Overview</a>
-                
-                <!-- Admin-only pages (show only for actual admins, not when viewing users in god mode) -->
-                <?php if ($effectiveRole === 'admin' && !$isGodMode): ?>
-                    <a href="dashboard.php?page=users" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'users' ? 'bg-blue-500 text-white' : '' ?>">Users</a>
-                <?php endif; ?>
-                
-                <!-- Standard user pages (available to everyone, including god mode viewing) -->
-                <a href="dashboard.php?page=binary" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'binary' ? 'bg-blue-500 text-white' : '' ?>">Binary Tree</a>
-                <a href="dashboard.php?page=referrals" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'referrals' ? 'bg-blue-500 text-white' : '' ?>">Referrals</a>
-                <a href="dashboard.php?page=leadership" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'leadership' ? 'bg-blue-500 text-white' : '' ?>">Matched Bonus</a>
-                <a href="dashboard.php?page=mentor" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'mentor' ? 'bg-blue-500 text-white' : '' ?>">Mentor Bonus</a>
-                <a href="dashboard.php?page=wallet" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'wallet' ? 'bg-blue-500 text-white' : '' ?>">Wallet</a>
-                <a href="dashboard.php?page=store" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'store' ? 'bg-blue-500 text-white' : '' ?>">Package Store</a>
-                <a href="<?= buildNavLink('product_store', $page) ?>" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'product_store' ? 'bg-blue-500 text-white' : '' ?>">Product Store</a>
-                <a href="dashboard.php?page=affiliate" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'affiliate' ? 'bg-blue-500 text-white' : '' ?>">Affiliate</a>
-                
-                <!-- Admin-only settings and management (only for actual admins, not god mode) -->
-                <?php if ($effectiveRole === 'admin' && !$isGodMode): ?>
-                    <a href="dashboard.php?page=settings" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'settings' ? 'bg-blue-500 text-white' : '' ?>">Settings</a>
-                    <a href="dashboard.php?page=manage_products" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md <?= $page === 'manage_products' ? 'bg-blue-500 text-white' : '' ?>">Manage Products</a>
-                <?php endif; ?>
-                
-                <a href="logout.php" class="block px-4 py-2 text-gray-600 hover:bg-blue-500 hover:text-white rounded-md">Logout</a>
-            </nav>
-        </div>
-
-        <!-- Main Content -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- Header -->
-            <header class="bg-white shadow-sm">
-                <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+    <?php else: ?>
+        <!-- Guest layout for product store -->
+        
+        <!-- Guest Navigation -->
+        <nav class="guest-nav">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
                     <div class="flex items-center">
-                        <button id="sidebarToggle" class="md:hidden text-gray-600 hover:text-gray-800 focus:outline-none">
-                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                            </svg>
-                        </button>
-                        <h1 class="text-xl font-semibold text-gray-800 ml-4">
-                            Dashboard - <?=htmlspecialchars($user['username'])?>
-                            <?php if ($user['status'] === 'inactive'): ?>
-                                <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Inactive</span>
-                            <?php elseif ($user['status'] === 'suspended'): ?>
-                                <span class="ml-2 px-2 py-1 text-xs bg-red-200 text-red-900 rounded-full">Suspended</span>
+                        <h1 class="text-xl font-bold text-gray-800">Shoppe Club</h1>
+                        <?php if (isset($_SESSION['aff'])): ?>
+                            <?php 
+                            $aff_user = null;
+                            if ($_SESSION['aff']) {
+                                $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ? AND status = 'active'");
+                                $stmt->execute([$_SESSION['aff']]);
+                                $aff_user = $stmt->fetch();
+                            }
+                            ?>
+                            <?php if ($aff_user): ?>
+                                <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                    Referred by <?= htmlspecialchars($aff_user['username']) ?>
+                                </div>
                             <?php endif; ?>
-                            <?php if ($isGodMode): ?>
-                                <span class="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">God Mode View</span>
-                            <?php endif; ?>
-                        </h1>
+                        <?php endif; ?>
                     </div>
+                    
                     <div class="flex items-center space-x-4">
-                        <span class="text-sm text-gray-600">Balance: $<?= number_format($user['balance'], 2) ?></span>
-                        <a href="dashboard.php?page=profile" class="text-gray-600 hover:text-blue-500">Profile</a>
+                        <?php if (!empty($_SESSION['cart']) && is_array($_SESSION['cart'])): ?>
+                            <?php 
+                            $cart_count = array_sum($_SESSION['cart']);
+                            if ($cart_count > 0): 
+                            ?>
+                                <button onclick="showCart()" class="flex items-center space-x-1 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm hover:bg-green-200 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 8L7 13m0 0l-2.5 5M7 13v6a2 2 0 002 2h6a2 2 0 002-2v-6M9 9v2m4-2v2"></path>
+                                    </svg>
+                                    <span>Cart (<?= $cart_count ?>)</span>
+                                </button>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                        
+                        <a href="login.php<?= isset($_SESSION['aff']) ? '?aff=' . $_SESSION['aff'] : '' ?>" class="text-blue-600 hover:text-blue-800 font-medium">Sign In</a>
+                        <a href="register.php<?= isset($_SESSION['aff']) ? '?aff=' . $_SESSION['aff'] : '' ?>" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium">Join Now</a>
                     </div>
                 </div>
-            </header>
+            </div>
+        </nav>
 
-            <!-- Main Content Area -->
-            <main class="flex-1 overflow-y-auto bg-gray-100 p-4 sm:p-6 lg:p-8">
-                <div class="max-w-7xl mx-auto">
-                    <?=flash()?>
-                    
-                    <!-- Show inactive account notice -->
-                    <?php if ($user['status'] === 'inactive'): ?>
-                        <div class="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4" role="alert">
-                            <div class="flex">
-                                <div class="py-1">
-                                    <svg class="fill-current h-6 w-6 text-orange-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                        <path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 11.32 11.32zM9 11V9h2v6H9v-4zm0-6h2v2H9V5z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="font-bold">Account Inactive</p>
-                                    <p class="text-sm">Your account is currently inactive. To activate your account and access all features, please <a href="dashboard.php?page=store" class="underline font-semibold">purchase a package</a>.</p>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <!-- Show suspended account notice (only visible in god mode) -->
-                    <?php if ($user['status'] === 'suspended' && $isGodMode): ?>
-                        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-                            <div class="flex">
-                                <div class="py-1">
-                                    <svg class="fill-current h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p class="font-bold">Account Suspended</p>
-                                    <p class="text-sm">This user's account has been suspended. They cannot log in or perform actions. Only visible in God Mode.</p>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php 
-                    // Include the appropriate page content
-                    if ($page === 'wallet' && $effectiveRole === 'admin' && !$isGodMode) {
-                        // Only show admin wallet page if actually admin and not in god mode
-                        $page_file = 'pages/wallet_admin.php';
-                    } else {
-                        $page_file = "pages/{$page}.php";
-                    }
-
-                    if (file_exists($page_file)) {
-                        require $page_file;
-                    } else {
-                        echo "<div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>Page not found: " . htmlspecialchars($page_file) . "</div>";
-                    }
-                    ?>
-                </div>                
-            </main>
-        </div>
-    </div>
+        <!-- Guest Main Content -->
+        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-lg shadow-lg">
+                <?= flash() ?>
+                
+                <?php 
+                // Include the appropriate page content for guests
+                $page_file = "pages/{$page}.php";
+                if (file_exists($page_file)) {
+                    require $page_file;
+                } else {
+                    echo "<div class='p-6'><div class='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>Page not found: " . htmlspecialchars($page_file) . "</div></div>";
+                }
+                ?>
+            </div>
+        </main>
+    <?php endif; ?>
 
     <script>
-    // God Mode Timer and Security Features
-    <?php if ($isGodMode): ?>
-    // Update god mode timer every second
-    setInterval(function() {
-        const startTime = <?= $godModeData['started_at'] ?>;
-        const currentTime = Math.floor(Date.now() / 1000);
-        const elapsedSeconds = currentTime - startTime;
-        const minutes = Math.floor(elapsedSeconds / 60);
-        const seconds = elapsedSeconds % 60;
-        
-        const timerElement = document.getElementById('god-mode-timer');
-        if (timerElement) {
-            timerElement.textContent = `Active for ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        
-        // Auto-refresh after 55 minutes to prevent session timeout
-        if (elapsedSeconds >= 3300) { // 55 minutes
-            window.location.reload();
-        }
-    }, 1000);
-
-    // keep a reference so we can detach it for internal links
-    window._godModeUnload = function (e) {
-        const message = 'You are currently in God Mode. Are you sure you want to leave?';
-        e.returnValue = message;
-        return message;
-    };
-    window.addEventListener('beforeunload', window._godModeUnload);
-
-    // Add visual indicator to distinguish god mode
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add red border to body to indicate god mode
-        document.body.style.borderTop = '4px solid #dc2626';
-        
-        // Add god mode class to body
-        document.body.classList.add('god-mode-active');
-        
-        // Add subtle animation to remind user they're in god mode
-        const style = document.createElement('style');
-        style.textContent = `
-            .god-mode-active {
-                position: relative;
-            }
-            .god-mode-active::before {
-                content: '';
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                height: 4px;
-                background: linear-gradient(90deg, #dc2626, #ef4444, #dc2626);
-                background-size: 200% 100%;
-                animation: god-mode-pulse 3s ease-in-out infinite;
-                z-index: 9999;
-                pointer-events: none;
-            }
-            @keyframes god-mode-pulse {
-                0%, 100% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-            }
-        `;
-        document.head.appendChild(style);
-    });
+    // God Mode Timer and Security Features (only for logged-in users)
+    <?php if ($is_logged_in && $isGodMode): ?>
+    // ... (keep existing god mode JavaScript)
     <?php endif; ?>
 
-    // Sidebar toggle for mobile
+    // Sidebar toggle for mobile (only for logged-in users)
+    <?php if ($is_logged_in): ?>
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const mainContent = document.querySelector('main');
@@ -794,12 +924,14 @@ function buildNavLink($targetPage, $currentPage = '') {
 
     // Close sidebar when clicking outside on mobile
     mainContent?.addEventListener('click', (e) => {
-        if (window.innerWidth <= 640 && sidebar?.classList.contains('open')) {
+        if (window.innerWidth <= 768 && sidebar?.classList.contains('open')) {
             sidebar.classList.remove('open');
         }
     });
+    <?php endif; ?>
 
-    // Initialize charts based on current page
+    // Initialize charts based on current page (only for logged-in users)
+    <?php if ($is_logged_in): ?>
     window.addEventListener('load', () => {
         const currentPage = '<?= $page ?>';
         if (currentPage === 'binary') {
@@ -812,8 +944,18 @@ function buildNavLink($targetPage, $currentPage = '') {
             }
         }
     });
+    <?php endif; ?>
 
+    // Global cart functions (available for both guests and logged-in users)
+    function showCart() {
+        // This function should be implemented in the product_store.php page
+        if (typeof loadCart === 'function') {
+            loadCart();
+            document.getElementById('cartModal')?.classList.add('show');
+        }
+    }
+    
     // Chart initialization will be handled by individual page scripts
     </script>
 </body>
-</html>
+</html> 

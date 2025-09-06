@@ -1,13 +1,38 @@
 <!-- pages/wallet.php -->
+<?php
+// Handle prefilled amount from pending orders
+$prefill_amount = '';
+if (isset($_GET['amount']) && is_numeric($_GET['amount']) && (float)$_GET['amount'] > 0) {
+    $prefill_amount = number_format((float)$_GET['amount'], 2, '.', '');
+}
+?>
+
 <!-- Wallet Section -->
 <h2 class="text-2xl font-bold text-gray-800 mb-4">Wallet</h2>
+
+<?php if ($prefill_amount): ?>
+    <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-lg mb-4">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-sm">Amount pre-filled based on your pending orders ($<?= $prefill_amount ?>)</span>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="bg-white shadow rounded-lg p-6 mb-6">
     <h3 class="text-lg font-semibold text-gray-700">Balance: $<?=number_format($user['balance'], 2)?></h3>
     <div class="mt-4 space-y-4">
         <form method="post" action="dashboard.php" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <input type="hidden" name="action" value="request_topup">
-            <input type="number" step="0.01" class="border rounded-lg p-2" name="usdt_amount" placeholder="USDT amount" required>
+            <input type="number" 
+                   step="0.01" 
+                   class="border rounded-lg p-2" 
+                   name="usdt_amount" 
+                   value="<?= htmlspecialchars($prefill_amount) ?>"
+                   placeholder="USDT amount" 
+                   required>
             <input type="text" class="border rounded-lg p-2" name="tx_hash" placeholder="Blockchain TX Hash (optional)">
             <button class="bg-green-500 text-white py-2 rounded-lg hover:bg-green-600">Request Top-up</button>
         </form>

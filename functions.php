@@ -90,3 +90,62 @@ function getUsernameById(int $id, PDO $pdo): ?string
         return null;
     }
 }
+
+/* =================================================================
+   Binary-tree placement helper (used by register.php & checkout.php)
+================================================================= */
+function findBestPlacement(int $sponsorId, PDO $pdo): ?array
+{
+    try {   
+        $queue        = [$sponsorId];
+        $visited      = [];
+        $maxDepth     = 10;
+        $currentDepth = 0;
+
+        while ($queue && $currentDepth < $maxDepth) {
+            $levelSize = count($queue);
+            for ($i = 0; $i < $levelSize; $i++) {
+                $userId = array_shift($queue);
+                if (in_array($userId, $visited)) continue;
+                $visited[] = $userId;
+
+                // counts of existing children
+                $stmt = $pdo->prepare("
+                    SELECT username,
+                           (SELECT COUNT(*) FROM users WHERE upline_id = ? AND position = 'left')  AS left_count,
+                           (SELECT COUNT(*) FROM users WHERE upline_id = ? AND position = 'right') AS right_count
+                    FROM   users
+                    WHERE  id = ?
+                ");
+                $stmt->execute([$userId, $userId, $userId]);
+                $info = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$info) continue;
+
+                if ($info['left_count'] == 0) {
+                    return ['upline_id' => $userId, 'upline_username' => $info['username'], 'position' => 'left'];
+                }
+                if ($info['right_count'] == 0) {
+                    return ['upline_id' => $userId, 'upline_username' => $info['username'], 'position' => 'right'];
+                }
+
+                // add children to queue for next level
+                $childStmt = $pdo->prepare("SELECT id FROM users WHERE upline_id = ?");
+                $childStmt->execute([$userId]);
+                while ($c = $childStmt->fetch(PDO::FETCH_ASSOC)) {
+                    $queue[] = (int)$c['id'];
+                }
+            }
+            $currentDepth++;
+        }
+
+        // fallback: place directly under sponsor (left side)
+        $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+        $stmt->execute([$sponsorId]);
+        $name = $stmt->fetchColumn();
+        return ['upline_id' => $sponsorId, 'upline_username' => $name, 'position' => 'left'];
+
+    } catch (PDOException $e) {
+        error_log("Placement finder error: " . $e->getMessage());
+        return null;
+    }
+}
