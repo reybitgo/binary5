@@ -287,7 +287,7 @@ if (!$_POST && isset($_GET['count'])) {
                     <div>
                         <strong>Key <?= $index + 1 ?>:</strong>
                         <span class="key-code"><?= htmlspecialchars($keyInfo['key']) ?></span>
-                        <button class="copy-btn" onclick="copyText('<?= htmlspecialchars($keyInfo['key'], ENT_QUOTES) ?>', this)">Copy Key</button>
+                        <!-- <button class="copy-btn" onclick="copyText('<?= htmlspecialchars($keyInfo['key'], ENT_QUOTES) ?>', this)">Copy Key</button> -->
                     </div>
                     <div>
                         <strong>Registration URL:</strong>
