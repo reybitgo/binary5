@@ -3,15 +3,15 @@
 $is_logged_in = isset($_SESSION['user_id']);
 $affiliate_id = isset($_SESSION['aff']) ? (int)$_SESSION['aff'] : (isset($_GET['aff']) ? (int)$_GET['aff'] : null);
 
-// Validate affiliate if provided
+// Validate affiliate if provided (UPDATED: Allow inactive affiliates for commissions)
 $affiliate_user = null;
 if ($affiliate_id) {
-    $stmt = $pdo->prepare("SELECT id, username, status FROM users WHERE id = ? AND status = 'active'");
+    $stmt = $pdo->prepare("SELECT id, username, status FROM users WHERE id = ?");
     $stmt->execute([$affiliate_id]);
     $affiliate_user = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($affiliate_user) {
-        $_SESSION['aff'] = $affiliate_id; // Persist affiliate ID
+        $_SESSION['aff'] = $affiliate_id; // Persist affiliate ID for both active and inactive users
     } else {
         unset($_SESSION['aff']);
         $affiliate_id = null;

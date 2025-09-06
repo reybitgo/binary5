@@ -46,19 +46,25 @@ if (($_POST['action'] ?? '') === 'complete_orders') {
                 $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'product_purchase', ?)")
                     ->execute([$uid, -$order['total_amount']]);
 
-                // affiliate commission
+                // affiliate commission (UPDATED: Allow inactive affiliates)
                 if ($order['affiliate_id'] && $order['affiliate_id'] != $uid) {
                     $product_stmt = $pdo->prepare("SELECT affiliate_rate FROM products WHERE id = ?");
                     $product_stmt->execute([$order['product_id']]);
                     $rate = (float)$product_stmt->fetchColumn();
                     if ($rate > 0) {
-                        $commission = $order['total_amount'] * ($rate / 100);
-                        $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
-                            ->execute([$order['affiliate_id']]);
-                        $pdo->prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?")
-                            ->execute([$commission, $order['affiliate_id']]);
-                        $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'affiliate_bonus', ?)")
-                            ->execute([$order['affiliate_id'], $commission]);
+                        // Check if affiliate user exists (removed active status requirement)
+                        $affiliate_check = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+                        $affiliate_check->execute([$order['affiliate_id']]);
+                        
+                        if ($affiliate_check->fetch()) {
+                            $commission = $order['total_amount'] * ($rate / 100);
+                            $pdo->prepare("INSERT IGNORE INTO wallets (user_id, balance) VALUES (?, 0.00)")
+                                ->execute([$order['affiliate_id']]);
+                            $pdo->prepare("UPDATE wallets SET balance = balance + ? WHERE user_id = ?")
+                                ->execute([$commission, $order['affiliate_id']]);
+                            $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'affiliate_bonus', ?)")
+                                ->execute([$order['affiliate_id'], $commission]);
+                        }
                     }
                 }
 

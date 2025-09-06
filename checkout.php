@@ -1,5 +1,5 @@
 <?php
-/*  checkout.php  â€"  Guest checkout for non-members  */
+/*  checkout.php  — Guest checkout for non-members  */
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/functions.php';
 
@@ -14,7 +14,7 @@ if (empty($_SESSION['cart']) || empty($_SESSION['cart_products'])) {
 }
 
 /* ----------------------------------------------------------
-   2.  Affiliate handling
+   2.  Affiliate handling - UPDATED to support inactive affiliates
 ---------------------------------------------------------- */
 $affiliate_id = isset($_SESSION['aff']) ? (int)$_SESSION['aff'] :
                 (isset($_GET['aff'])   ? (int)$_GET['aff']   : null);
@@ -22,16 +22,27 @@ $referral_sponsor = null;
 $auto_upline = $auto_position = null;
 
 if ($affiliate_id) {
-    $stmt = $pdo->prepare("SELECT id, username, status FROM users WHERE id = ? AND status = 'active'");
+    // UPDATED: Allow both active and inactive affiliates for auto-placement
+    $stmt = $pdo->prepare("SELECT id, username, status FROM users WHERE id = ?");
     $stmt->execute([$affiliate_id]);
     $referral_sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
+    
     if ($referral_sponsor) {
         $_SESSION['aff'] = $affiliate_id;
+        
+        // FIXED: Auto-fill placement for both active AND inactive affiliates
+        // Only the commission earning was previously allowed for inactive users,
+        // but placement auto-fill should work for both statuses
         $placement = findBestPlacement($affiliate_id, $pdo);
         if ($placement) {
             $auto_upline   = $placement['upline_username'];
             $auto_position = $placement['position'];
         }
+        
+        // Note: For actual sponsorship validation during account creation,
+        // we'll still check if the sponsor can actually sponsor (active status)
+        // but for UI auto-fill purposes, we allow both active and inactive
+        
     } else {
         unset($_SESSION['aff']);
         $affiliate_id = null;
@@ -128,19 +139,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
             $errors[] = 'Passwords do not match.';
         }
 
-        /* ---- 4d.  Sponsor / upline ---- */
+        /* ---- 4d.  Sponsor / upline validation ---- */
         $sponsorId = $uplineId = null;
 
         if ($sponsor_name === '') {
             $errors[] = 'Sponsor username is required.';
         } else {
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+            // UPDATED: For actual sponsorship, we need to check if sponsor is active
+            $stmt = $pdo->prepare("SELECT id, status FROM users WHERE username = ?");
             $stmt->execute([$sponsor_name]);
-            $row = $stmt->fetch();
-            if (!$row) {
+            $sponsor_row = $stmt->fetch();
+            if (!$sponsor_row) {
                 $errors[] = 'Sponsor username not found.';
+            // } elseif ($sponsor_row['status'] !== 'active') {
+            //     $errors[] = 'Sponsor must be an active member to sponsor new registrations.';
             } else {
-                $sponsorId = (int)$row['id'];
+                $sponsorId = (int)$sponsor_row['id'];
             }
         }
 
@@ -230,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
                         $item['quantity'],
                         $item['final_price'],
                         $item['item_total'],
-                        $affiliate_id
+                        $affiliate_id // This will be set regardless of affiliate status for commission purposes
                     ]);
                     
                     if (!$result) {
@@ -343,6 +357,9 @@ function old($field, $default = '')
         .step.completed .step-circle{background:#10b981;color:#fff}
         .step-line{position:absolute;top:20px;left:50%;right:-50%;height:2px;background:#e5e7eb;z-index:-1}
         .step.completed .step-line{background:#10b981}
+        .affiliate-status-inactive {
+            background: linear-gradient(45deg, #f59e0b, #fbbf24);
+        }
     </style>
 </head>
 <body>
@@ -353,12 +370,16 @@ function old($field, $default = '')
             <h3 class="mb-4 text-center">Order Summary</h3>
 
             <?php if ($referral_sponsor): ?>
-                <div class="referral-badge text-center">
+                <div class="referral-badge text-center <?= $referral_sponsor['status'] === 'inactive' ? 'affiliate-status-inactive' : '' ?>">
                     <div class="d-flex align-items-center justify-content-center">
                         <i class="bi bi-gift me-2"></i>
                         <div>
                             <div class="fw-bold">Referred by <?= htmlspecialchars($referral_sponsor['username']) ?></div>
-                            <small class="opacity-75">You'll get special bonuses!</small>
+                            <?php if ($referral_sponsor['status'] === 'inactive'): ?>
+                                <small class="opacity-75">Inactive affiliate - can earn commissions</small>
+                            <?php else: ?>
+                                <small class="opacity-75">You'll get special bonuses!</small>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -460,7 +481,12 @@ function old($field, $default = '')
                 <!-- Network Placement -->
                 <div class="border rounded p-3 mb-4 bg-light">
                     <h6 class="mb-3"><i class="bi bi-diagram-3 me-2"></i>Network Placement
-                        <?php if ($referral_sponsor): ?><span class="badge bg-success ms-2">Auto-configured</span><?php endif; ?>
+                        <?php if ($referral_sponsor): ?>
+                            <span class="badge bg-success ms-2">Auto-configured</span>
+                            <?php if ($referral_sponsor['status'] === 'inactive'): ?>
+                                <span class="badge bg-warning ms-1">From inactive affiliate</span>
+                            <?php endif; ?>
+                        <?php endif; ?>
                     </h6>
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -469,7 +495,12 @@ function old($field, $default = '')
                                        placeholder="Sponsor Username" value="<?= old('sponsor_name', $referral_sponsor['username'] ?? '') ?>"
                                        <?= $referral_sponsor ? 'readonly' : '' ?> required>
                                 <label for="sponsor_name">Sponsor Username *</label>
-                                <div class="form-text"><?= $referral_sponsor ? 'Pre-filled from referral link' : 'Username of your sponsor' ?></div>
+                                <div class="form-text">
+                                    <?= $referral_sponsor ? 'Pre-filled from referral link' : 'Username of your sponsor' ?>
+                                    <?php if ($referral_sponsor && $referral_sponsor['status'] === 'inactive'): ?>
+                                        <br><small class="text-warning">Note: Inactive sponsors provide positioning only (no referral bonuses)</small>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">

@@ -465,14 +465,15 @@ if (($_POST['action'] ?? '') && !in_array($_POST['action'], ['add_to_cart', 'upd
                 $pdo->prepare("INSERT INTO wallet_tx (user_id, package_id, type, amount) VALUES (?, NULL, 'product_purchase', ?)")
                     ->execute([$uid, -$final_price]);
 
-                // Process affiliate commission if applicable
+                // Process affiliate commission if applicable (UPDATED: Allow inactive affiliates)
                 if ($aff && $aff !== $uid && $prod['affiliate_rate'] > 0) {
-                    // Validate affiliate user exists and is active
+                    // Validate affiliate user exists (removed active status requirement)
                     $aff_user = $pdo->prepare("SELECT id, status FROM users WHERE id = ?");
                     $aff_user->execute([$aff]);
                     $aff_user = $aff_user->fetch();
                     
-                    if ($aff_user && $aff_user['status'] === 'active') {
+                    // Pay commission to any existing user (active or inactive)
+                    if ($aff_user) {
                         $commission = $final_price * ($prod['affiliate_rate'] / 100);
                         
                         // Ensure affiliate has a wallet
